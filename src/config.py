@@ -1,3 +1,4 @@
+import logging
 from contextvars import ContextVar
 from typing import Optional, Union
 
@@ -6,16 +7,6 @@ from sqlalchemy.ext.asyncio import (
     async_scoped_session,
 )
 from sqlalchemy.orm import Session, scoped_session
-
-
-class SingletonMeta(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
 
 
 def verify_config(**kwargs):
@@ -31,7 +22,7 @@ def verify_config(**kwargs):
         raise ValueError("scoped_session is required")
 
 
-transaction_context: ContextVar[Optional[Session]] = ContextVar(
+transaction_context: ContextVar[Optional[Session|AsyncSession]] = ContextVar(
     "transaction_context", default=None
 )
 
@@ -52,6 +43,7 @@ class ScopeAndSessionManager:
         """
         verify_config(**{"scoped_session": scoped_session_})
         self.scoped_session_: async_scoped_session | scoped_session = scoped_session_
+        logging.debug(f"Session manager initialized {self.scoped_session_ is not None}")
 
     def get_new_session(self, force: bool = False) -> Union[Session, AsyncSession]:
         if force:
@@ -60,8 +52,14 @@ class ScopeAndSessionManager:
             return self.scoped_session_.session_factory()
 
 
-class SessionHandler(metaclass=SingletonMeta):
+class SessionHandler:
     scoped_session_manager: ScopeAndSessionManager = None
+    __instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls)
+        return cls.__instance
 
     @classmethod
     def get_manager(cls) -> ScopeAndSessionManager:
@@ -80,3 +78,4 @@ def init_manager(
     handler = SessionHandler()
     manager = ScopeAndSessionManager(scoped_session_=session)
     handler.set_manager(manager)
+    logging.debug(f"Session manager initialized")

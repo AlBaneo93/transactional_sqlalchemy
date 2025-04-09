@@ -1,77 +1,81 @@
 import functools
 import logging
-from asyncio import iscoroutinefunction
+from collections.abc import Awaitable
 from enum import Enum
-from typing import Awaitable, Callable
+from inspect import iscoroutinefunction, unwrap
+from typing import Callable, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction
 from sqlalchemy.orm import Session, SessionTransaction
 
-from config import SessionHandler, transaction_context
+from src import SessionHandler, transaction_context
 
 AsyncCallable = Callable[..., Awaitable]
 
 
 class Propagation(Enum):
-    REQUIRES = "REQUIRES"
-    REQUIRES_NEW = "REQUIRES_NEW"
-    NESTED = "NESTED"
+    REQUIRES = 'REQUIRES'
+    REQUIRES_NEW = 'REQUIRES_NEW'
+    NESTED = 'NESTED'
 
 
-async def _a_do_fn_with_tx(func, session: AsyncSession, *args, **kwargs):
-    tx: AsyncSessionTransaction = await session.begin()  # 트랜잭션 명시적 시작
-    transaction_context.set(session)
+async def _a_do_fn_with_tx(func, sess_: AsyncSession, *args, **kwargs):
+    tx: AsyncSessionTransaction = await sess_.begin()  # 트랜잭션 명시적 시작
+    transaction_context.set(sess_)
 
     try:
-        kwargs["session"] = session
+        kwargs['session'] = sess_
         result = await func(*args, **kwargs)
         if tx.is_active:
             # 트랜잭션이 활성화 되어 있다면 커밋
             await tx.commit()
         return result
     except:
-        logging.exception("")
+        logging.exception('')
         if tx.is_active:
             await tx.rollback()
         raise
     finally:
-        await session.aclose()
+        await sess_.aclose()
         transaction_context.set(None)
 
 
-def _do_fn_with_tx(func, session: Session, *args, **kwargs):
-    tx: SessionTransaction = session.get_transaction()  # 시작 되어 넘어옴
-    # tx: SessionTransaction = session.begin()  # 트랜잭션 명시적 시작
+def _do_fn_with_tx(func, sess_: Session, *args, **kwargs):
+    tx: SessionTransaction = sess_.get_transaction()  # 시작 되어 넘어옴
+
     if tx is None:
-        tx = session.begin()
-    transaction_context.set(session)
+        tx = sess_.begin() # 트랜잭션 명시적 시작
+    transaction_context.set(sess_)
 
     try:
-        kwargs["session"] = session
+        kwargs['session'] = sess_
         result = func(*args, **kwargs)
         if tx.is_active:
             tx.commit()
         return result
     except:
-        logging.exception("")
+        logging.exception('')
         if tx.is_active:
             tx.rollback()
         raise
     finally:
-        session.close()
+        sess_.close()
         transaction_context.set(None)
 
 
 def transactional(
-    _func: AsyncCallable | None = None,
+    _func: Optional[AsyncCallable|Callable]  = None,
     *,
     propagation: Propagation = Propagation.REQUIRES,
 ):
-    def decorator(func: AsyncCallable):
-        if iscoroutinefunction(func):
+
+    def decorator(func: AsyncCallable|Callable):
+        # logging.info(f'ORIGINAL FUNC: {func.__name__}')s
+
+        if iscoroutinefunction(unwrap(func)):
             # transactional decorator가 async function에 사용된 경우
             @functools.wraps(func)
-            async def wrapper(*args, **kwargs):
+            async def async_wrapper(*args, **kwargs):
                 current_session = transaction_context.get()
 
                 handler = SessionHandler()
@@ -104,7 +108,7 @@ def transactional(
                     # 사용중인 세션이 있다면 해당 세션을 사용
                     save_point = await current_session.begin_nested()
                     try:
-                        kwargs["session"] = current_session
+                        kwargs['session'] = current_session
                         result = await func(*args, **kwargs)
                         await current_session.flush()
                         return result
@@ -114,7 +118,9 @@ def transactional(
                             await save_point.rollback()
                         raise
 
-            transaction_func = wrapper
+            setattr(async_wrapper, '_transactional_propagation', propagation)
+            setattr(async_wrapper, '_transactional_decorated', True)
+            return async_wrapper
         else:
             # transactional decorator가 sync function에 사용된 경우
             @functools.wraps(func)
@@ -151,7 +157,7 @@ def transactional(
                     # 사용중인 세션이 있다면 해당 세션을 사용
                     save_point = current_session.begin_nested()
                     try:
-                        kwargs["session"] = current_session
+                        kwargs['session'] = current_session
                         result = func(*args, **kwargs)
                         current_session.flush()
                         return result
@@ -161,13 +167,8 @@ def transactional(
                             save_point.rollback()
                         raise
 
-            transaction_func = wrapper
+            setattr(wrapper, '_transactional_propagation', propagation)
+            setattr(wrapper, '_transactional_decorated', True)
+            return wrapper
 
-        setattr(transaction_func, "_transactional_propagation", propagation)
-        setattr(transaction_func, "_transactional_decorated", True)
-        return transaction_func
-
-    if _func is None:
-        return decorator
-    else:
-        return decorator(_func)
+    return decorator if _func is None else decorator(_func)

@@ -1,13 +1,13 @@
 [project]
 name = "transactional-sqlalchemy"
 version = "0.1.0"
-description = "transactional management using sqlalchemy[asyncio]"
+description = "transactional management using sqlalchemy"
 authors = [{ name = "hsjeong", email = 'hsjeong@surromind.ai' }]
 requires-python = ">=3.10"
 dependencies = [
     "build>=1.2.2.post1",
     "setuptools>=76.1.0",
-    "sqlalchemy[asyncio]>=2.0.39",
+    "sqlalchemy>=2.0.0",
     "wheel>=0.45.1",
 ]
 readme = "README.md"
@@ -17,6 +17,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+async = [
+    "sqlalchemy[asyncio]>=2.0.0",
+]
 
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -31,6 +35,11 @@ dev = [
     "pytest-sqlalchemy>=0.2.1",
 ]
 
+
+[project.urls]
+"Homepage" = "https://github.com/AlBaneo93/sqlalchemy_transactional"
+"Bug Reports" = "https://github.com/AlBaneo93/sqlalchemy_transactional"
+
 [tool.ruff]
 line-length = 120
 target-version = "py39"
@@ -39,7 +48,6 @@ include = [
     "tests/**/*.py",
     "examples/**/*.py",
 ]
-exclude = ["tests"]
 
 [tool.ruff.lint]
 extend-select = [

@@ -418,8 +418,13 @@ source = { editable = "." }
 dependencies = [
     { name = "build" },
     { name = "setuptools" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "sqlalchemy" },
     { name = "wheel" },
+]
+
+[package.optional-dependencies]
+async = [
+    { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 
 [package.dev-dependencies]
@@ -435,9 +440,11 @@ dev = [
 requires-dist = [
     { name = "build", specifier = ">=1.2.2.post1" },
     { name = "setuptools", specifier = ">=76.1.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.39" },
+    { name = "sqlalchemy", specifier = ">=2.0.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'async'", specifier = ">=2.0.0" },
     { name = "wheel", specifier = ">=0.45.1" },
 ]
+provides-extras = ["async"]
 
 [package.metadata.requires-dev]
 dev = [

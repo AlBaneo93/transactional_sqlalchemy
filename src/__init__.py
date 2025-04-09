@@ -1,5 +1,5 @@
 from .config import init_manager, SessionHandler, transaction_context
-from .transactional import transactional
+from .transactional import Propagation, transactional
 from .interface import ITransactionalRepository
 
 __all__ = [
@@ -8,4 +8,5 @@ __all__ = [
     init_manager,
     ITransactionalRepository,
     SessionHandler,
+    Propagation
 ]
