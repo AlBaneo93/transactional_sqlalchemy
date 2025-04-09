@@ -1,0 +1,4 @@
+build>=1.2.2.post1
+setuptools>=76.1.0
+sqlalchemy[asyncio]>=2.0.39
+wheel>=0.45.1

@@ -1,0 +1,71 @@
+[project]
+name = "transactional-sqlalchemy"
+version = "0.1.0"
+description = "transactional management using sqlalchemy[asyncio]"
+authors = [{ name = "hsjeong", email = 'hsjeong@surromind.ai' }]
+requires-python = ">=3.10"
+dependencies = [
+    "build>=1.2.2.post1",
+    "setuptools>=76.1.0",
+    "sqlalchemy[asyncio]>=2.0.39",
+    "wheel>=0.45.1",
+]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.21.0",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.25.3",
+    "pytest-sqlalchemy>=0.2.1",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+include = [
+    "pytest_examples/**/*.py",
+    "tests/**/*.py",
+    "examples/**/*.py",
+]
+exclude = ["tests"]
+
+[tool.ruff.lint]
+extend-select = [
+    "Q",
+    "RUF100",
+    "C90",
+    "UP",
+    "I",
+    "D",
+]
+flake8-quotes = { inline-quotes = "single", multiline-quotes = "double" }
+isort = { combine-as-imports = true, known-first-party = ["pytest_examples"] }
+mccabe = { max-complexity = 15 }
+ignore = [
+    "D100", # ignore missing docstring in module
+    "D101", # ignore missing docstring in public class
+    "D102", # ignore missing docstring in public method
+    "D103", # ignore missing docstring in public function
+    "D104", # ignore missing docstring in public package
+    "D105", # ignore missing docstring in magic methods
+    "D107", # ignore missing docstring in __init__ methods
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "single"
+
