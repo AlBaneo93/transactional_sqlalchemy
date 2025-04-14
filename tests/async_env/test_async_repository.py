@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import scoped_session
 
-from src import ITransactionalRepository, Propagation, transaction_context, transactional
+from transactional_sqlalchemy import ITransactionalRepository, Propagation, transaction_context, transactional
 from tests.async_env.conftest import Post
 
 

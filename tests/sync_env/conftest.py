@@ -12,7 +12,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-from src import init_manager, transaction_context
+from transactional_sqlalchemy import init_manager, transaction_context
 
 ORMBase = declarative_base()
 

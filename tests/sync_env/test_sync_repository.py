@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, scoped_session
 
-from src import ITransactionalRepository, Propagation, transaction_context, transactional
+from transactional_sqlalchemy import ITransactionalRepository, Propagation, transaction_context, transactional
 from tests.sync_env.conftest import Post
 
 

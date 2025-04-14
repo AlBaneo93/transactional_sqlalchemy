@@ -1,7 +1,7 @@
 from abc import ABC
 
-from src.transactional import Propagation, transactional
-from utils import with_transaction_context
+from transactional_sqlalchemy.transactional import Propagation, transactional
+from transactional_sqlalchemy.utils import with_transaction_context
 
 
 class AutoSessionMixIn(ABC):
@@ -26,7 +26,7 @@ class AutoSessionMixIn(ABC):
                     setattr(cls, attr_name, with_transaction_context_func)
 
 
-class AutoTransactionalMixIn(ABC ):
+class AutoTransactionalMixIn(ABC):
     """Repository 클래스에서 상속받으면 자동으로 transactional 데코레이터를 적용하는 추상클래스
     """
 
@@ -47,6 +47,11 @@ class AutoTransactionalMixIn(ABC ):
                     setattr(decorated_func, '_transactional_decorated', True)
                     setattr(cls, attr_name, decorated_func)
 
+
+class ISessionRepository(AutoSessionMixIn):
+    """세션을 사용하는 Repository에 대한 인터페이스
+    """
+    pass
 
 class ITransactionalRepository(AutoTransactionalMixIn, AutoSessionMixIn):
     pass

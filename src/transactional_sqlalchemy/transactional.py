@@ -8,7 +8,7 @@ from typing import Callable, Optional
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction
 from sqlalchemy.orm import Session, SessionTransaction
 
-from src import SessionHandler, transaction_context
+from transactional_sqlalchemy import SessionHandler, transaction_context
 
 AsyncCallable = Callable[..., Awaitable]
 
@@ -70,7 +70,6 @@ def transactional(
 ):
 
     def decorator(func: AsyncCallable|Callable):
-        # logging.info(f'ORIGINAL FUNC: {func.__name__}')s
 
         if iscoroutinefunction(unwrap(func)):
             # transactional decorator가 async function에 사용된 경우

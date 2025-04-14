@@ -1,4 +1,3 @@
-# 자동으로 trasactional이 적용되는지 테스트
 import asyncio
 import logging
 from datetime import datetime
@@ -15,7 +14,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
-from src import init_manager, transaction_context
+from transactional_sqlalchemy import init_manager, transaction_context
 
 ORMBase = declarative_base()
 

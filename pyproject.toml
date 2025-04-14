@@ -23,7 +23,7 @@ async = [
 ]
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
@@ -39,6 +39,10 @@ dev = [
 [project.urls]
 "Homepage" = "https://github.com/AlBaneo93/sqlalchemy_transactional"
 "Bug Reports" = "https://github.com/AlBaneo93/sqlalchemy_transactional"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["transactional_sqlalchemy*"]
 
 [tool.ruff]
 line-length = 120
