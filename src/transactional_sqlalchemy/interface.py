@@ -1,7 +1,8 @@
 from abc import ABC
 
-from transactional_sqlalchemy.transactional import Propagation, transactional
-from transactional_sqlalchemy.utils import with_transaction_context
+from src.transactional_sqlalchemy import Propagation
+from src.transactional_sqlalchemy.transactional import transactional
+from src.transactional_sqlalchemy.utils import with_transaction_context
 
 
 class AutoSessionMixIn(ABC):

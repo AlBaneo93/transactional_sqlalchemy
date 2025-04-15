@@ -12,7 +12,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-from transactional_sqlalchemy import init_manager, transaction_context
+from src.transactional_sqlalchemy import init_manager, transaction_context
 
 ORMBase = declarative_base()
 
@@ -76,7 +76,4 @@ class Post(ORMBase):
     title: Mapped[str] = mapped_column(String(255))
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
-    )
-
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

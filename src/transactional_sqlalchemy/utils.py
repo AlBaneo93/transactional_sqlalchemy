@@ -5,7 +5,7 @@ from inspect import iscoroutinefunction, unwrap
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from transactional_sqlalchemy.config import SessionHandler, transaction_context
+from src.transactional_sqlalchemy.config import SessionHandler, transaction_context
 
 
 def allocate_session_in_args(bound_args: inspect.BoundArguments):
@@ -17,13 +17,14 @@ def allocate_session_in_args(bound_args: inspect.BoundArguments):
 
 
 def with_transaction_context(func):
-    """함수의 session 파라미터를 자동으로 transaction_context에서 가져오도록 설정하는 데코레이터"""
+    """함수의 session 파라미터를 자동으로 transaction_context에서 가져오도록 설정하는 데코레이터
+    """
     sig = inspect.signature(func)
 
     if iscoroutinefunction(unwrap(func)):
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            bound_args = sig.bind(*args, **kwargs)
+            bound_args = sig.bind_partial(*args, **kwargs)
             bound_args.apply_defaults()
             allocate_session_in_args(bound_args)
 
@@ -33,7 +34,7 @@ def with_transaction_context(func):
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            bound_args = sig.bind(*args, **kwargs)
+            bound_args = sig.bind_partial(*args, **kwargs)
             bound_args.apply_defaults()
             allocate_session_in_args(bound_args)
 

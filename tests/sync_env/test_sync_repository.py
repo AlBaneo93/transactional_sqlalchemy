@@ -6,7 +6,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, scoped_session
 
-from transactional_sqlalchemy import ITransactionalRepository, Propagation, transaction_context, transactional
+from src.transactional_sqlalchemy import (
+    ISessionRepository,
+    ITransactionalRepository,
+    Propagation,
+    transaction_context,
+    transactional,
+)
 from tests.sync_env.conftest import Post
 
 
@@ -14,7 +20,6 @@ class TransactionSyncRepositoryImpl(ITransactionalRepository):
     @transactional(propagation=Propagation.REQUIRES)
     def requires(self, post: Post, session: Session):
         session.add(post)
-
 
     @transactional(propagation=Propagation.REQUIRES)
     def requires_error(self, post: Post, session: Session):
@@ -59,9 +64,7 @@ def repository_sync() -> TransactionSyncRepositoryImpl:
 
 
 class TestSyncTransactional:
-
-
-    def test_default(self, repository_sync:TransactionSyncRepositoryImpl, transaction_sync):
+    def test_default(self, repository_sync: TransactionSyncRepositoryImpl, transaction_sync):
         # 정상적으로 DB에 저장되면 됨
         post = Post(**{'title': 'tests', 'content': 'tests'})
 
@@ -75,7 +78,6 @@ class TestSyncTransactional:
 
 
 class TestSyncRequiresNewTransactional:
-
     def test_requires_new(self, repository_sync, transaction_sync):
         post = Post(**{'title': 'tests', 'content': 'tests'})
         new_post = Post(**{'title': 'new_tests', 'content': 'new_tests'})
@@ -147,7 +149,7 @@ class TestSyncNestedTransactional:
     def test_nested(
         self,
         repository_sync,
-            transaction_sync,
+        transaction_sync,
         scoped_session_: scoped_session,
     ):
         # outer와 nested에서 모두 정상적으로 DB 저장이 되는지 확인
@@ -213,7 +215,7 @@ class TestSyncNestedTransactional:
 
         with pytest.raises(Exception):
             # outer, nested 모두 롤백 되어야 함
-            with sess() as tx:
+            with sess as tx:
                 tx.add(post)
                 repository_sync.nested(nest_post)
                 raise Exception('outer rollback')
@@ -223,3 +225,39 @@ class TestSyncNestedTransactional:
             result = sess.execute(stmt)
             result = result.scalars().all()
             assert len(result) == 0
+
+        sess.close()
+
+
+class PostRepository(ISessionRepository):
+
+    def create(self, post: Post, *, session: Session = None) -> None:
+        session.add(post)
+        session.commit()
+        session.refresh(post)
+        session.close()
+
+    def create_error(self, post: Post, *, session: Session = None) -> None:
+        session.add(post)
+        raise Exception('error')
+
+class TestAutoSessionAllocate:
+
+    def test_auto_session_allocate(self):
+        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post_repo = PostRepository()
+
+        post_repo.create(post)
+
+        assert post.id is not None
+
+    def test_auto_session_not_allocate(self):
+        post = Post(**{'title': 'tests2', 'content': 'tests2'})
+        post_repo = PostRepository()
+
+        try:
+            post_repo.create_error(post)
+        except:
+            pass
+
+        assert post.id is None

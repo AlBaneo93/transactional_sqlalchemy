@@ -1,13 +1,13 @@
 [project]
 name = "transactional-sqlalchemy"
-version = "0.1.0"
+version = "0.1.1"
 description = "transactional management using sqlalchemy"
-authors = [{ name = "hsjeong", email = 'hsjeong@surromind.ai' }]
+authors = [{ name = "alban", email = 'decade_vesper.8i@icloud.com' }]
 requires-python = ">=3.10"
 dependencies = [
-    "build>=1.2.2.post1",
+    "pydevd-pycharm>=251.23774.354",
     "setuptools>=76.1.0",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy[asyncio]>=2.0.0",
     "wheel>=0.45.1",
 ]
 readme = "README.md"
@@ -30,15 +30,16 @@ build-backend = "setuptools.build_meta"
 dev = [
     "aiosqlite>=0.21.0",
     "pre-commit>=4.2.0",
-    "pytest>=8.3.5",
+    "pytest[asyncio]>=8.3.5",
     "pytest-asyncio>=0.25.3",
     "pytest-sqlalchemy>=0.2.1",
+    "sqlalchemy[asyncio]>=2.0.39",
 ]
 
 
 [project.urls]
-"Homepage" = "https://github.com/AlBaneo93/sqlalchemy_transactional"
-"Bug Reports" = "https://github.com/AlBaneo93/sqlalchemy_transactional"
+"Homepage" = "https://github.com/AlBaneo93/transactional_sqlalchemy"
+"Bug Reports" = "https://github.com/AlBaneo93/transactional_sqlalchemy/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -82,3 +83,8 @@ convention = "google"
 docstring-code-format = true
 quote-style = "single"
 
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true

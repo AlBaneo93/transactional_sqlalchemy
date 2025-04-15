@@ -9,7 +9,13 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import scoped_session
 
-from transactional_sqlalchemy import ITransactionalRepository, Propagation, transaction_context, transactional
+from src.transactional_sqlalchemy import (
+    ISessionRepository,
+    ITransactionalRepository,
+    Propagation,
+    transaction_context,
+    transactional,
+)
 from tests.async_env.conftest import Post
 
 
@@ -140,11 +146,10 @@ class TestRequiresTransactional:
 
 
 class TestNestedTransactional:
-
     @pytest.mark.asyncio
     async def test_nested(
         self,
-            repository_async,
+        repository_async,
         transaction_async,
         scoped_session_: async_scoped_session | scoped_session,
     ):
@@ -192,7 +197,7 @@ class TestNestedTransactional:
     @pytest.mark.asyncio
     async def test_nested_with_outer_error(
         self,
-            repository_async,
+        repository_async,
         scoped_session_: async_scoped_session | scoped_session,
     ):
         try:
@@ -222,3 +227,37 @@ class TestNestedTransactional:
             result = await sess.execute(stmt)
             result = result.scalars().all()
             assert len(result) == 0
+
+class PostRepository(ISessionRepository):
+
+    async def create(self, post: Post, *, session: AsyncSession = None) -> None:
+        session.add(post)
+        await session.commit()
+        await session.refresh(post)
+
+    async def create_error(self, post: Post, *, session: AsyncSession = None) -> None:
+        session.add(post)
+        raise Exception('error')
+
+class TestAutoSessionAllocate:
+
+    @pytest.mark.asyncio
+    async def test_auto_session_allocate(self):
+        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post_repo = PostRepository()
+
+        await post_repo.create(post)
+
+        assert post.id is not None
+
+    @pytest.mark.asyncio
+    async def test_auto_session_not_allocate(self):
+        post = Post(**{'title': 'tests2', 'content': 'tests2'})
+        post_repo = PostRepository()
+
+        try:
+            await post_repo.create_error(post)
+        except:
+            pass
+
+        assert post.id is None

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
-from transactional_sqlalchemy import init_manager, transaction_context
+from src.transactional_sqlalchemy import init_manager, transaction_context
 
 ORMBase = declarative_base()
 
@@ -49,10 +49,7 @@ def session_factory_(async_engine_: AsyncEngine) -> async_sessionmaker:
 
 @pytest.fixture(scope='function', autouse=True)
 def scoped_session_(session_factory_) -> async_scoped_session:
-    return async_scoped_session(
-        session_factory_, scopefunc=asyncio.current_task
-    )
-
+    return async_scoped_session(session_factory_, scopefunc=asyncio.current_task)
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -62,9 +59,7 @@ def session_start_up(scoped_session_: async_scoped_session) -> None:
 
 
 @pytest_asyncio.fixture(scope='function', autouse=True)
-async def transaction_async(
-    scoped_session_: async_scoped_session, session_start_up
-) -> AsyncSession:
+async def transaction_async(scoped_session_: async_scoped_session, session_start_up) -> AsyncSession:
     sess = scoped_session_()
     transaction_context.set(sess)
     await sess.begin()
@@ -80,7 +75,4 @@ class Post(ORMBase):
     title: Mapped[str] = mapped_column(String(255))
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
-    )
-
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
