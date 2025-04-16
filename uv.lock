@@ -181,12 +181,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pydevd-pycharm"
-version = "251.23774.354"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b0/11/736ae1c86f420abf3e6becbb45daecb1339ac643614a8b4bbade293fbe62/pydevd_pycharm-251.23774.354.tar.gz", hash = "sha256:3e4382993b742e4b33b1ee3624d0f9af9e2383dc88df46b397276f0f961a6833", size = 8036381 }
-
-[[package]]
 name = "pytest"
 version = "8.3.5"
 source = { registry = "https://pypi.org/simple" }
@@ -382,10 +376,9 @@ wheels = [
 
 [[package]]
 name = "transactional-sqlalchemy"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
-    { name = "pydevd-pycharm" },
     { name = "setuptools" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "wheel" },
@@ -408,7 +401,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pydevd-pycharm", specifier = ">=251.23774.354" },
     { name = "setuptools", specifier = ">=76.1.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'async'", specifier = ">=2.0.0" },
