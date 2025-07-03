@@ -2,14 +2,17 @@ import functools
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.scoping import scoped_session
 
-from src.transactional_sqlalchemy import SessionHandler, transaction_context
-from src.transactional_sqlalchemy.enums import Propagation
+from transactional_sqlalchemy import SessionHandler, scoped_session_context, transaction_context
+from transactional_sqlalchemy.enums import Propagation
 
 
-def __check_is_commit(exc:Exception, rollback_for:tuple[type[Exception]], no_rollback_for:tuple[type[Exception], ...]):
-
+def __check_is_commit(
+    exc: Exception, rollback_for: tuple[type[Exception]], no_rollback_for: tuple[type[Exception], ...]
+):
     if any(isinstance(exc, exc_type) for exc_type in no_rollback_for):
         # 롤백 대상이 아닌 경우 commit
         return True
@@ -20,23 +23,28 @@ def __check_is_commit(exc:Exception, rollback_for:tuple[type[Exception]], no_rol
 
     return False
 
-async def _a_do_fn_with_tx(func, sess_: AsyncSession,   *args, **kwargs,):
-    
+
+async def _a_do_fn_with_tx(
+    func,
+    sess_: AsyncSession,
+    *args,
+    **kwargs,
+):
     transaction_context.set(sess_)
-    
+
     result = None
 
     kwargs, no_rollback_for, rollback_for = __get_safe_kwargs(kwargs)
 
     try:
-        kwargs['session'] = sess_
+        kwargs["session"] = sess_
         result = await func(*args, **kwargs)
         if sess_.is_active:
             # 트랜잭션이 활성화 되어 있다면 커밋
             await sess_.commit()
 
     except Exception as e:
-        logging.exception('')
+        logging.exception("")
 
         if __check_is_commit(e, rollback_for, no_rollback_for):
             # 롤백 대상이 아닌 경우 commit
@@ -50,13 +58,17 @@ async def _a_do_fn_with_tx(func, sess_: AsyncSession,   *args, **kwargs,):
             raise
 
     finally:
-        # await sess_.aclose()
         transaction_context.set(None)
 
     return result
 
 
-def _do_fn_with_tx(func, sess_: Session, *args, **kwargs,):
+def _do_fn_with_tx(
+    func,
+    sess_: Session,
+    *args,
+    **kwargs,
+):
     tx = sess_.get_transaction()
     if sess_.get_transaction() is None:
         # 트랜잭션 명시적 시작
@@ -69,14 +81,13 @@ def _do_fn_with_tx(func, sess_: Session, *args, **kwargs,):
     kwargs, no_rollback_for, rollback_for = __get_safe_kwargs(kwargs)
 
     try:
-        kwargs['session'] = sess_
+        kwargs["session"] = sess_
         result = func(*args, **kwargs)
         if tx.is_active:
             tx.commit()
 
     except Exception as e:
-        logging.exception('')
-
+        logging.exception("")
 
         if __check_is_commit(e, rollback_for, no_rollback_for):
             # 롤백 대상이 아닌 경우 commit
@@ -96,54 +107,63 @@ def _do_fn_with_tx(func, sess_: Session, *args, **kwargs,):
 
 
 def __get_safe_kwargs(kwargs):
-    rollback_for: tuple[type[Exception]] = kwargs.get('__rollback_for__', (Exception,))
-    no_rollback_for: tuple[type[Exception], ...] = kwargs.get('__no_rollback_for__', ())
-    kwargs = {k: v for k, v in kwargs.items() if not k.startswith('__')}
-    
+    rollback_for: tuple[type[Exception]] = kwargs.get("__rollback_for__", (Exception,))
+    no_rollback_for: tuple[type[Exception], ...] = kwargs.get("__no_rollback_for__", ())
+    kwargs = {k: v for k, v in kwargs.items() if not k.startswith("__")}
+
     return kwargs, no_rollback_for, rollback_for
 
 
-def __sync_transaction_wrapper(func, propagation:Propagation, rollback_for: tuple[type[Exception]],
-no_rollback_for: tuple[type[Exception, ...]]):
+def __sync_transaction_wrapper(
+    func, propagation: Propagation, rollback_for: tuple[type[Exception]], no_rollback_for: tuple[type[Exception, ...]]
+):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        current_session = transaction_context.get()
+        current_session: Session = transaction_context.get()
+        scoped_: scoped_session | None = scoped_session_context.get()
 
         handler = SessionHandler()
 
-        kwargs['__rollback_for__'] = rollback_for
-        kwargs['__no_rollback_for__'] = no_rollback_for
+        kwargs["__rollback_for__"] = rollback_for
+        kwargs["__no_rollback_for__"] = no_rollback_for
 
         if current_session is None:
-            current_session = handler.get_manager().get_new_session()
+            current_session, scoped_ = handler.get_manager().get_new_session()
 
         if propagation == Propagation.REQUIRES:
-            using_session =                 (current_session  # 이미 트랜잭션을 사용중인 경우 해당 트랜잭션을 사용
-                if current_session
-                else handler.get_manager().get_new_session()  # 사용 중인 트랜잭션이 없는경우, 새로운 트랜잭션 사용
-            )
+            if current_session:
+                # 이미 트랜잭션을 사용중인 경우 해당 트랜잭션을 사용
+                using_session = current_session
+            else:
+                # 사용 중인 트랜잭션이 없는경우, 새로운 트랜잭션 사용
+                sess_, sc_ = handler.get_manager().get_new_session()
+                using_session = sess_
+                scoped_ = sc_
+
             result = _do_fn_with_tx(
                 func,
-        using_session,
+                using_session,
                 *args,
                 **kwargs,
             )
             if using_session.is_active:
                 using_session.close()
+            if scoped_ is not None:
+                scoped_.remove()
             return result
 
         elif propagation == Propagation.REQUIRES_NEW:
-            new_session = handler.get_manager().get_new_session(
-                True
-            )  # 강제로 세션 생성 + 시작
+            new_session, new_scoped_ = handler.get_manager().get_new_session(True)  # 강제로 세션 생성 + 시작
 
             result = _do_fn_with_tx(func, new_session, *args, **kwargs)
 
             if new_session.is_active:
                 new_session.close()
+                new_scoped_.remove()
 
             # 기존 세션으로 복구
             transaction_context.set(current_session)
+
             return result
 
         elif propagation == Propagation.NESTED:
@@ -152,7 +172,7 @@ no_rollback_for: tuple[type[Exception, ...]]):
             kwargs, _, _ = __get_safe_kwargs(kwargs)
 
             try:
-                kwargs['session'] = current_session
+                kwargs["session"] = current_session
                 result = func(*args, **kwargs)
                 current_session.flush()
                 return result
@@ -164,43 +184,51 @@ no_rollback_for: tuple[type[Exception, ...]]):
 
     return wrapper
 
-def __async_transaction_wrapper(func,propagation:Propagation, rollback_for: tuple[type[Exception]],
-no_rollback_for: tuple[type[Exception, ...]]):
+
+def __async_transaction_wrapper(
+    func, propagation: Propagation, rollback_for: tuple[type[Exception]], no_rollback_for: tuple[type[Exception, ...]]
+):
     @functools.wraps(func)
     async def async_wrapper(*args, **kwargs):
-        current_session = transaction_context.get()
-
+        current_session: AsyncSession = transaction_context.get()
+        scoped_: async_scoped_session | None = scoped_session_context.get()
         handler = SessionHandler()
 
         if current_session is None:
-            current_session = handler.get_manager().get_new_session()
+            current_session, scoped_ = handler.get_manager().get_new_async_session()
 
-        kwargs['__rollback_for__'] = rollback_for
-        kwargs['__no_rollback_for__'] = no_rollback_for
+        kwargs["__rollback_for__"] = rollback_for
+        kwargs["__no_rollback_for__"] = no_rollback_for
 
         if propagation == Propagation.REQUIRES:
-            using_session = (current_session  # 이미 트랜잭션을 사용중인 경우 해당 트랜잭션을 사용
-                if current_session
-                else handler.get_manager().get_new_session()  # 사용 중인 트랜잭션이 없는경우, 새로운 트랜잭션 사용
-            )
+            if current_session:
+                # 이미 트랜잭션을 사용중인 경우 해당 트랜잭션을 사용
+                using_session = current_session
+
+            else:
+                # 사용 중인 트랜잭션이 없는경우, 새로운 트랜잭션 사용
+                sess_, scoped_ = handler.get_manager().get_new_async_session()
+                using_session = sess_
+
             result = await _a_do_fn_with_tx(
                 func,
                 using_session,
-                * args,
+                *args,
                 **kwargs,
             )
             await using_session.close()
+            if scoped_ is not None:
+                await scoped_.remove()  # 세션 제거
             return result
 
         elif propagation == Propagation.REQUIRES_NEW:
-            new_session = handler.get_manager().get_new_session(
-                True
-            )  # 강제로 세션 생성
+            new_session, scoped_ = handler.get_manager().get_new_session(True)  # 강제로 세션 생성
 
             result = await _a_do_fn_with_tx(func, new_session, *args, **kwargs)
             await new_session.close()
             # 기존 세션으로 복구
             transaction_context.set(current_session)
+            scoped_session_context.set(scoped_)
             return result
 
         elif propagation == Propagation.NESTED:
@@ -208,7 +236,7 @@ no_rollback_for: tuple[type[Exception, ...]]):
             save_point = await current_session.begin_nested()
             kwargs, _, _ = __get_safe_kwargs(kwargs)
             try:
-                kwargs['session'] = current_session
+                kwargs["session"] = current_session
                 result = await func(*args, **kwargs)
                 await current_session.flush()
                 return result

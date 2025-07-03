@@ -9,14 +9,14 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import scoped_session
 
-from src.transactional_sqlalchemy import (
+from tests.async_env.conftest import Post
+from transactional_sqlalchemy import (
     ISessionRepository,
     ITransactionalRepository,
     Propagation,
     transaction_context,
     transactional,
 )
-from tests.async_env.conftest import Post
 
 
 class TransactionAsyncRepositoryImpl(ITransactionalRepository):
@@ -28,7 +28,7 @@ class TransactionAsyncRepositoryImpl(ITransactionalRepository):
     @transactional(propagation=Propagation.REQUIRES)
     async def requires_error(self, post: Post, session: AsyncSession):
         session.add(post)
-        raise Exception('requires error')
+        raise Exception("requires error")
 
     @transactional(propagation=Propagation.REQUIRES_NEW)
     async def requires_new(self, post: Post, session: AsyncSession):
@@ -37,7 +37,7 @@ class TransactionAsyncRepositoryImpl(ITransactionalRepository):
     @transactional(propagation=Propagation.REQUIRES_NEW)
     async def requires_new_error(self, post: Post, session: AsyncSession):
         session.add(post)
-        raise Exception('tests')
+        raise Exception("tests")
 
     @transactional(propagation=Propagation.NESTED)
     async def nested(self, post: Post, session: AsyncSession):
@@ -49,7 +49,7 @@ class TransactionAsyncRepositoryImpl(ITransactionalRepository):
     async def nested_error(self, post: Post, session: AsyncSession):
         # 내부 트랜잭션에서 실행, 외부에는 영향 주지 않음
         session.add(post)
-        raise Exception('tests')  # rollback
+        raise Exception("tests")  # rollback
 
     @transactional
     async def default(self, post: Post, session: AsyncSession):
@@ -61,7 +61,7 @@ class TransactionAsyncRepositoryImpl(ITransactionalRepository):
         assert post.id is not None
 
 
-@pytest_asyncio.fixture(scope='module', autouse=True)
+@pytest_asyncio.fixture(scope="module", autouse=True)
 def repository_async() -> TransactionAsyncRepositoryImpl:
     repo = TransactionAsyncRepositoryImpl()
     return repo
@@ -71,7 +71,7 @@ class TestTransactional:
     @pytest.mark.asyncio
     async def test_default(self, repository_async):
         # 정상적으로 DB에 저장되면 됨
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
 
         try:
             await repository_async.default(post)
@@ -85,15 +85,12 @@ class TestRequiresNewTransactional:
     @pytest.mark.asyncio
     async def test_requires_new(self, repository_async, transaction_async):
         async with transaction_async as sess:
-            post = Post(**{'title': 'tests', 'content': 'tests'})
-            new_post = Post(**{'title': 'new_tests', 'content': 'new_tests'})
+            post = Post(**{"title": "tests", "content": "tests"})
+            new_post = Post(**{"title": "new_tests", "content": "new_tests"})
             sess.add(post)
 
             # 새로운 트랜잭션이 생겨서 따로 실행되어야함
-            try:
-                await repository_async.requires_new(new_post)
-            except:
-                pass
+            await repository_async.requires_new(new_post)
 
             await sess.commit()
             await sess.refresh(post)
@@ -102,8 +99,8 @@ class TestRequiresNewTransactional:
             assert post.id is not None
 
     async def test_requires_new_error(self, repository_async, transaction_async):
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        new_post = Post(**{'title': 'new_tests', 'content': 'new_tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        new_post = Post(**{"title": "new_tests", "content": "new_tests"})
 
         async with transaction_async as sess:
             sess.add(post)
@@ -124,7 +121,7 @@ class TestRequiresTransactional:
     async def test_requires(self, repository_async):
         # 외부의 세션이 없을 때, 정상적으로 세션을 생성하는지 확인
         # 정상적으로 DB에 저장되면 됨
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
 
         try:
             await repository_async.requires(post)
@@ -136,7 +133,7 @@ class TestRequiresTransactional:
     @pytest.mark.asyncio
     async def test_requires_error(self, repository_async):
         # 외부의 세션이 없을 때, 정상적으로 세션을 생성하는지 확인
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
 
         with pytest.raises(Exception):
             await repository_async.requires_error(post)
@@ -154,8 +151,8 @@ class TestNestedTransactional:
         scoped_session_: async_scoped_session | scoped_session,
     ):
         # outer와 nested에서 모두 정상적으로 DB 저장이 되는지 확인
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        nest_post = Post(**{'title': 'nest_test', 'content': 'nest'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        nest_post = Post(**{"title": "nest_test", "content": "nest"})
 
         async with transaction_async as sess:
             sess.add(post)
@@ -178,8 +175,8 @@ class TestNestedTransactional:
     @pytest.mark.asyncio
     async def test_nested_with_inner_error(self, repository_async, transaction_async):
         # netsted 세션은 롤백되나, outer는 정상적으로 commit이 되어야함
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        nest_post = Post(**{'title': 'nest_test', 'content': 'nest'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        nest_post = Post(**{"title": "nest_test", "content": "nest"})
 
         # nested 만 롤백 되어야 함
         async with transaction_async as sess:
@@ -206,11 +203,11 @@ class TestNestedTransactional:
             transaction_context.set(sess)
 
         except:
-            logging.exception('')
+            logging.exception("")
             raise
 
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        nest_post = Post(**{'title': 'nest_tests', 'content': 'nest_tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        nest_post = Post(**{"title": "nest_tests", "content": "nest_tests"})
 
         sess = transaction_context.get()
         assert sess is not None
@@ -220,7 +217,7 @@ class TestNestedTransactional:
             async with sess() as tx:
                 tx.add(post)
                 await repository_async.nested(nest_post)
-                raise Exception('outer rollback')
+                raise Exception("outer rollback")
 
         async with scoped_session_() as sess:
             stmt = select(Post).where(Post.id.in_([nest_post.id, post.id]))
@@ -228,8 +225,8 @@ class TestNestedTransactional:
             result = result.scalars().all()
             assert len(result) == 0
 
-class PostRepository(ISessionRepository):
 
+class PostRepository(ISessionRepository):
     async def create(self, post: Post, *, session: AsyncSession = None) -> None:
         session.add(post)
         await session.commit()
@@ -237,13 +234,13 @@ class PostRepository(ISessionRepository):
 
     async def create_error(self, post: Post, *, session: AsyncSession = None) -> None:
         session.add(post)
-        raise Exception('error')
+        raise Exception("error")
+
 
 class TestAutoSessionAllocate:
-
     @pytest.mark.asyncio
     async def test_auto_session_allocate(self):
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
         post_repo = PostRepository()
 
         await post_repo.create(post)
@@ -252,12 +249,10 @@ class TestAutoSessionAllocate:
 
     @pytest.mark.asyncio
     async def test_auto_session_not_allocate(self):
-        post = Post(**{'title': 'tests2', 'content': 'tests2'})
+        post = Post(**{"title": "tests2", "content": "tests2"})
         post_repo = PostRepository()
 
-        try:
+        with pytest.raises(Exception):
             await post_repo.create_error(post)
-        except:
-            pass
 
         assert post.id is None

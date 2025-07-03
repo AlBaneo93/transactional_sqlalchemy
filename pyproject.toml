@@ -34,6 +34,8 @@ dev = [
     "pytest-asyncio>=0.25.3",
     "pytest-sqlalchemy>=0.2.1",
     "sqlalchemy[asyncio]>=2.0.39",
+    "pytest-xdist>=3.8.0",
+    "pytest-cov>=6.2.1",
 ]
 
 
@@ -42,17 +44,17 @@ dev = [
 "Bug Reports" = "https://github.com/AlBaneo93/transactional_sqlalchemy/issues"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["transactional_sqlalchemy"]
 include = ["transactional_sqlalchemy*"]
 
 [tool.ruff]
 line-length = 120
 target-version = "py39"
 include = [
-    "pytest_examples/**/*.py",
+    "transactional_sqlalchemy/**/*.py",
     "tests/**/*.py",
-    "examples/**/*.py",
 ]
+extend-include = [".venv", "build", "dist", "migrations"]
 
 [tool.ruff.lint]
 extend-select = [
@@ -62,6 +64,7 @@ extend-select = [
     "UP",
     "I",
     "D",
+    "E", "F"
 ]
 flake8-quotes = { inline-quotes = "single", multiline-quotes = "double" }
 isort = { combine-as-imports = true, known-first-party = ["pytest_examples"] }
@@ -79,12 +82,27 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+
 [tool.ruff.format]
+line-ending = "lf"
+quote-style = "double"
+skip-magic-trailing-comma = false
 docstring-code-format = true
-quote-style = "single"
+
 
 [[tool.uv.index]]
 name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q -n auto --cov=transactional_sqlalchemy --cov-report=term-missing"
+#asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"
+
+log_cli = true
+log_cli_level = "INFO"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+log_cli_format = "%(levelname)-8s %(asctime)s %(name)s::%(filename)s:%(funcName)s:%(lineno)d: %(message)s"

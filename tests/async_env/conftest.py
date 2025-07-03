@@ -12,67 +12,77 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.pool.impl import StaticPool
 
-from src.transactional_sqlalchemy import init_manager, transaction_context
+from tests.conftest import ORMBase
+from transactional_sqlalchemy import init_manager, transaction_context
 
-ORMBase = declarative_base()
+# @pytest.fixture(scope='function')
+# def event_loop():
+#     """Create an instance of the default event loop for each test module."""
+#     loop = asyncio.new_event_loop()
+#     yield loop
+#     loop.close()
 
 
-async def db_startup(async_engine_: AsyncEngine):
-    # db init
+@pytest_asyncio.fixture(scope="module", autouse=True)
+async def async_engine_():
+    async_engine_ = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=False,
+        future=True,
+        poolclass=StaticPool,
+        # 변경!
+        connect_args={"check_same_thread": False},  # 필요시 추가)
+    )
     async with async_engine_.begin() as conn:
         await conn.run_sync(ORMBase.metadata.create_all)
 
-    logging.info('DB initialized')
-
-
-async def db_shutdown(async_engine_: AsyncEngine):
-    # db close
+    yield async_engine_
     await async_engine_.dispose()
-    logging.info('DB disposed')
 
 
-@pytest.fixture(scope='module', autouse=True)
-def async_engine_() -> AsyncEngine:
-    DB_URL = 'sqlite+aiosqlite:///:memory:'
-    async_engine_ = create_async_engine(DB_URL, echo=False, future=True)
-    asyncio.run(db_startup(async_engine_))
-    return async_engine_
-
-
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def session_factory_(async_engine_: AsyncEngine) -> async_sessionmaker:
     async_session_factory = async_sessionmaker(async_engine_, expire_on_commit=False)
     return async_session_factory
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def scoped_session_(session_factory_) -> async_scoped_session:
     return async_scoped_session(session_factory_, scopefunc=asyncio.current_task)
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def session_start_up(scoped_session_: async_scoped_session) -> None:
     init_manager(scoped_session_)
-    logging.info('Session initialized')
+    logging.info("Session initialized")
 
 
-@pytest_asyncio.fixture(scope='function', autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def transaction_async(scoped_session_: async_scoped_session, session_start_up) -> AsyncSession:
     sess = scoped_session_()
     transaction_context.set(sess)
     await sess.begin()
 
-    logging.info('Transaction started')
+    logging.info("Transaction started")
     return sess
 
 
 class Post(ORMBase):
-    __tablename__ = 'post_async'
+    __tablename__ = "post_async"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(255))
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+# 테스트용 모델 정의
+class TestModel(ORMBase):
+    __tablename__ = "test_model"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(50))

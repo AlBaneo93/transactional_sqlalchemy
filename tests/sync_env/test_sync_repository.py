@@ -6,14 +6,14 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, scoped_session
 
-from src.transactional_sqlalchemy import (
+from tests.sync_env.conftest import Post
+from transactional_sqlalchemy import (
     ISessionRepository,
     ITransactionalRepository,
     Propagation,
     transaction_context,
     transactional,
 )
-from tests.sync_env.conftest import Post
 
 
 class TransactionSyncRepositoryImpl(ITransactionalRepository):
@@ -24,7 +24,7 @@ class TransactionSyncRepositoryImpl(ITransactionalRepository):
     @transactional(propagation=Propagation.REQUIRES)
     def requires_error(self, post: Post, session: Session):
         session.add(post)
-        raise Exception('requires error')
+        raise Exception("requires error")
 
     @transactional(propagation=Propagation.REQUIRES_NEW)
     def requires_new(self, post: Post, session: Session):
@@ -33,7 +33,7 @@ class TransactionSyncRepositoryImpl(ITransactionalRepository):
     @transactional(propagation=Propagation.REQUIRES_NEW)
     def requires_new_error(self, post: Post, session: Session):
         session.add(post)
-        raise Exception('tests')
+        raise Exception("tests")
 
     @transactional(propagation=Propagation.NESTED)
     def nested(self, post: Post, session: Session):
@@ -45,7 +45,7 @@ class TransactionSyncRepositoryImpl(ITransactionalRepository):
     def nested_error(self, post: Post, session: Session):
         # 내부 트랜잭션에서 실행, 외부에는 영향 주지 않음
         session.add(post)
-        raise Exception('tests')  # rollback
+        raise Exception("tests")  # rollback
 
     @transactional
     def default(self, post: Post, session: Session):
@@ -57,7 +57,7 @@ class TransactionSyncRepositoryImpl(ITransactionalRepository):
         # assert post.id is not None
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def repository_sync() -> TransactionSyncRepositoryImpl:
     repo = TransactionSyncRepositoryImpl()
     return repo
@@ -66,12 +66,12 @@ def repository_sync() -> TransactionSyncRepositoryImpl:
 class TestSyncTransactional:
     def test_default(self, repository_sync: TransactionSyncRepositoryImpl, transaction_sync):
         # 정상적으로 DB에 저장되면 됨
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
 
         try:
             repository_sync.default(post)
         except:
-            logging.exception('')
+            logging.exception("")
             raise
 
         assert post.id is not None
@@ -79,8 +79,8 @@ class TestSyncTransactional:
 
 class TestSyncRequiresNewTransactional:
     def test_requires_new(self, repository_sync, transaction_sync):
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        new_post = Post(**{'title': 'new_tests', 'content': 'new_tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        new_post = Post(**{"title": "new_tests", "content": "new_tests"})
 
         with transaction_sync as sess:
             sess.add(post)
@@ -89,7 +89,7 @@ class TestSyncRequiresNewTransactional:
             try:
                 repository_sync.requires_new(new_post)
             except:
-                logging.exception('')
+                logging.exception("")
                 raise
 
             sess.commit()
@@ -99,15 +99,15 @@ class TestSyncRequiresNewTransactional:
         assert post.id is not None
 
     def test_requires_new_error(self, repository_sync, transaction_sync):
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        new_post = Post(**{'title': 'new_tests', 'content': 'new_tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        new_post = Post(**{"title": "new_tests", "content": "new_tests"})
 
         with transaction_sync as sess:
             sess.add(post)
 
             # 새로운 트랜잭션이 생겨서 따로 실행되나 롤백
             with pytest.raises(Exception):
-                logging.info(f'TEST {iscoroutinefunction(repository_sync.requires_new_error)}')
+                logging.info(f"TEST {iscoroutinefunction(repository_sync.requires_new_error)}")
                 repository_sync.requires_new_error(new_post)
 
             sess.commit()
@@ -121,7 +121,7 @@ class TestSyncRequiresTransactional:
     def test_requires(self, repository_sync):
         # 외부의 세션이 없을 때, 정상적으로 세션을 생성하는지 확인
         # 정상적으로 DB에 저장되면 됨
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
 
         try:
             repository_sync.requires(post)
@@ -129,14 +129,14 @@ class TestSyncRequiresTransactional:
             # sess.commit()
             # sess.refresh(post)
         except:
-            logging.exception('')
+            logging.exception("")
             raise
 
         assert post.id is not None
 
     def test_requires_error(self, repository_sync):
         # 외부의 세션이 없을 때, 정상적으로 세션을 생성하는지 확인
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
 
         with pytest.raises(Exception):
             repository_sync.requires_error(post)
@@ -153,8 +153,8 @@ class TestSyncNestedTransactional:
         scoped_session_: scoped_session,
     ):
         # outer와 nested에서 모두 정상적으로 DB 저장이 되는지 확인
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        nest_post = Post(**{'title': 'nest_test', 'content': 'nest'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        nest_post = Post(**{"title": "nest_test", "content": "nest"})
 
         with transaction_sync as sess:
             sess.add(post)
@@ -176,8 +176,8 @@ class TestSyncNestedTransactional:
 
     def test_nested_with_inner_error(self, repository_sync, transaction_sync):
         # netsted 세션은 롤백되나, outer는 정상적으로 commit이 되어야함
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        nest_post = Post(**{'title': 'nest_test', 'content': 'nest'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        nest_post = Post(**{"title": "nest_test", "content": "nest"})
 
         # nested 만 롤백 되어야 함
         with transaction_sync as sess:
@@ -204,11 +204,11 @@ class TestSyncNestedTransactional:
             transaction_context.set(sess)
 
         except:
-            logging.exception('')
+            logging.exception("")
             raise
 
-        post = Post(**{'title': 'tests', 'content': 'tests'})
-        nest_post = Post(**{'title': 'nest_tests', 'content': 'nest_tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
+        nest_post = Post(**{"title": "nest_tests", "content": "nest_tests"})
 
         sess = transaction_context.get()
         assert sess is not None
@@ -218,7 +218,7 @@ class TestSyncNestedTransactional:
             with sess as tx:
                 tx.add(post)
                 repository_sync.nested(nest_post)
-                raise Exception('outer rollback')
+                raise Exception("outer rollback")
 
         with scoped_session_() as sess:
             stmt = select(Post).where(Post.id.in_([nest_post.id, post.id]))
@@ -230,7 +230,6 @@ class TestSyncNestedTransactional:
 
 
 class PostRepository(ISessionRepository):
-
     def create(self, post: Post, *, session: Session = None) -> None:
         session.add(post)
         session.commit()
@@ -239,12 +238,12 @@ class PostRepository(ISessionRepository):
 
     def create_error(self, post: Post, *, session: Session = None) -> None:
         session.add(post)
-        raise Exception('error')
+        raise Exception("error")
+
 
 class TestAutoSessionAllocate:
-
     def test_auto_session_allocate(self):
-        post = Post(**{'title': 'tests', 'content': 'tests'})
+        post = Post(**{"title": "tests", "content": "tests"})
         post_repo = PostRepository()
 
         post_repo.create(post)
@@ -252,12 +251,10 @@ class TestAutoSessionAllocate:
         assert post.id is not None
 
     def test_auto_session_not_allocate(self):
-        post = Post(**{'title': 'tests2', 'content': 'tests2'})
+        post = Post(**{"title": "tests2", "content": "tests2"})
         post_repo = PostRepository()
 
-        try:
+        with pytest.raises(Exception):
             post_repo.create_error(post)
-        except:
-            pass
 
         assert post.id is None

@@ -1,6 +1,6 @@
 import logging
 from contextvars import ContextVar
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -10,9 +10,7 @@ from sqlalchemy.orm import Session, scoped_session
 
 
 def verify_config(**kwargs):
-    """
-
-    Args:
+    """Args:
         **kwargs ():
 
     Returns:
@@ -22,8 +20,9 @@ def verify_config(**kwargs):
         raise ValueError("scoped_session is required")
 
 
-transaction_context: ContextVar[Optional[Session|AsyncSession]] = ContextVar(
-    "transaction_context", default=None
+transaction_context: ContextVar[Optional[Session | AsyncSession]] = ContextVar("transaction_context", default=None)
+scoped_session_context: ContextVar[Optional[scoped_session | async_scoped_session]] = ContextVar(
+    "scoped_session_context", default=None
 )
 
 
@@ -36,20 +35,26 @@ class ScopeAndSessionManager:
         return cls.__instance
 
     def __init__(self, scoped_session_: Union[async_scoped_session, scoped_session]):
-        """
-
-        Args:
-            scoped_session_ ():
+        """Args:
+        scoped_session_ ():
         """
         verify_config(**{"scoped_session": scoped_session_})
         self.scoped_session_: async_scoped_session | scoped_session = scoped_session_
         logging.debug(f"Session manager initialized {self.scoped_session_ is not None}")
 
-    def get_new_session(self, force: bool = False) -> Union[Session, AsyncSession]:
+    def get_new_session(
+        self, force: bool = False
+    ) -> Union[Tuple[Session, scoped_session], Tuple[AsyncSession, async_scoped_session]]:
         if force:
-            return self.scoped_session_()
+            return self.scoped_session_(), self.scoped_session_
         else:
-            return self.scoped_session_.session_factory()
+            return self.scoped_session_.session_factory(), self.scoped_session_
+
+    def get_new_async_session(self, force: bool = False) -> Tuple[AsyncSession, async_scoped_session]:
+        if force:
+            return self.scoped_session_(), self.scoped_session_
+        else:
+            return self.scoped_session_.session_factory(), self.scoped_session_
 
 
 class SessionHandler:
@@ -78,4 +83,4 @@ def init_manager(
     handler = SessionHandler()
     manager = ScopeAndSessionManager(scoped_session_=session)
     handler.set_manager(manager)
-    logging.debug(f"Session manager initialized")
+    logging.debug("Session manager initialized")
