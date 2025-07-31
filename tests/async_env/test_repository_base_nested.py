@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.scoping import scoped_session
 
-from repository.base import BaseCRUDTransactionRepository, MODEL_TYPE
-from tests.async_env.conftest import Post
+from tests.conftest import Post
 from transactional_sqlalchemy import Propagation, transaction_context, transactional
+from transactional_sqlalchemy.repository.base import MODEL_TYPE, BaseCRUDTransactionRepository
 
 
 class BaseNestedCRUDTransactionRepositoryImpl(BaseCRUDTransactionRepository[Post]):
@@ -17,10 +17,9 @@ class BaseNestedCRUDTransactionRepositoryImpl(BaseCRUDTransactionRepository[Post
         return await super().save(model, session=session)
 
     @transactional(propagation=Propagation.NESTED)
-    async def save_error(self, model: MODEL_TYPE, *, session: AsyncSession) -> MODEL_TYPE:
-        result = await super().save(model, session=session)  # noqa
+    async def save_error(self, model: MODEL_TYPE, *, session: AsyncSession = None) -> MODEL_TYPE:
+        await super().save(model)
         raise Exception()
-        return result  # noqa
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -79,7 +78,6 @@ class TestNestedTransactional:
 
             with pytest.raises(Exception):
                 await repository_async.save_error(nest_post)
-                raise Exception()
 
             await sess.commit()
             await sess.refresh(post)

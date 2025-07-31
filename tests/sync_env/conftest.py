@@ -1,12 +1,12 @@
 import logging
-from datetime import datetime
 
 import pytest
-from sqlalchemy import DateTime, Engine, Integer, String, Text, create_engine, func
-from sqlalchemy.orm import Mapped, Session, mapped_column, scoped_session, sessionmaker
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
 from tests.conftest import ORMBase
 from transactional_sqlalchemy import init_manager, transaction_context
+from transactional_sqlalchemy.utils.structure import Stack
 
 
 def db_startup(sync_engine_: Engine):
@@ -54,18 +54,9 @@ def session_start_up(scoped_session_: scoped_session) -> None:
 @pytest.fixture(scope="function", autouse=True)
 def transaction_sync(session_factory_, session_start_up) -> Session:
     scoped_session_ = scoped_session(session_factory_)
-
     sess = scoped_session_()
-    transaction_context.set(sess)
+    s = Stack()
+    s.push(sess)
+    transaction_context.set(s)
 
     return sess
-
-
-class Post(ORMBase):
-    __tablename__ = "post_sync"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    title: Mapped[str] = mapped_column(String(255))
-    content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

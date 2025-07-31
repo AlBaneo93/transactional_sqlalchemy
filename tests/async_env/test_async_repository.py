@@ -3,13 +3,10 @@ import logging
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_scoped_session,
-)
+from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from sqlalchemy.orm import scoped_session
 
-from tests.async_env.conftest import Post
+from tests.conftest import Post
 from transactional_sqlalchemy import (
     ISessionRepository,
     ITransactionalRepository,
@@ -23,6 +20,7 @@ class TransactionAsyncRepositoryImpl(ITransactionalRepository):
     @transactional(propagation=Propagation.REQUIRES)
     async def requires(self, post: Post, session: AsyncSession):
         session.add(post)
+        await session.flush()
         return post
 
     @transactional(propagation=Propagation.REQUIRES)

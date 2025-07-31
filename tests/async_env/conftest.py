@@ -1,10 +1,8 @@
 import asyncio
 import logging
-from datetime import datetime
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import DateTime, Integer, String, Text, func
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -12,21 +10,15 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.pool.impl import StaticPool
 
 from tests.conftest import ORMBase
 from transactional_sqlalchemy import init_manager, transaction_context
-
-# @pytest.fixture(scope='function')
-# def event_loop():
-#     """Create an instance of the default event loop for each test module."""
-#     loop = asyncio.new_event_loop()
-#     yield loop
-#     loop.close()
+from transactional_sqlalchemy.utils.structure import Stack
+from transactional_sqlalchemy.utils.utils import add_session_to_context
 
 
-@pytest_asyncio.fixture(scope="module", autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def async_engine_():
     async_engine_ = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
@@ -63,26 +55,9 @@ def session_start_up(scoped_session_: async_scoped_session) -> None:
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def transaction_async(scoped_session_: async_scoped_session, session_start_up) -> AsyncSession:
     sess = scoped_session_()
-    transaction_context.set(sess)
+    add_session_to_context(sess)
+
     await sess.begin()
 
     logging.info("Transaction started")
     return sess
-
-
-class Post(ORMBase):
-    __tablename__ = "post_async"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    title: Mapped[str] = mapped_column(String(255))
-    content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
-
-
-# 테스트용 모델 정의
-class TestModel(ORMBase):
-    __tablename__ = "test_model"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(50))

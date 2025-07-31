@@ -2,7 +2,8 @@ from collections.abc import Awaitable, Callable
 from inspect import iscoroutinefunction, unwrap
 
 from transactional_sqlalchemy.enums import Propagation
-from transactional_sqlalchemy.wrapper import __async_transaction_wrapper, __sync_transaction_wrapper
+from transactional_sqlalchemy.wrapper.async_wrapper import __async_transaction_wrapper
+from transactional_sqlalchemy.wrapper.sync_wrapper import __sync_transaction_wrapper
 
 AsyncCallable = Callable[..., Awaitable]
 

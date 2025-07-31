@@ -1,12 +1,11 @@
 import logging
 from contextvars import ContextVar
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_scoped_session,
-)
+from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from sqlalchemy.orm import Session, scoped_session
+
+from transactional_sqlalchemy.utils.structure import Stack
 
 
 def verify_config(**kwargs):
@@ -20,7 +19,8 @@ def verify_config(**kwargs):
         raise ValueError("scoped_session is required")
 
 
-transaction_context: ContextVar[Optional[Session | AsyncSession]] = ContextVar("transaction_context", default=None)
+transaction_context: ContextVar[Stack[Session | AsyncSession]] = ContextVar("transaction_context", default=Stack())
+# transaction_option_context: ContextVar[Optional[dict]] = ContextVar("transaction_option_context", default=None)
 scoped_session_context: ContextVar[Optional[scoped_session | async_scoped_session]] = ContextVar(
     "scoped_session_context", default=None
 )
@@ -44,13 +44,13 @@ class ScopeAndSessionManager:
 
     def get_new_session(
         self, force: bool = False
-    ) -> Union[Tuple[Session, scoped_session], Tuple[AsyncSession, async_scoped_session]]:
+    ) -> tuple[Session, scoped_session] | tuple[AsyncSession, async_scoped_session]:
         if force:
             return self.scoped_session_(), self.scoped_session_
         else:
             return self.scoped_session_.session_factory(), self.scoped_session_
 
-    def get_new_async_session(self, force: bool = False) -> Tuple[AsyncSession, async_scoped_session]:
+    def get_new_async_session(self, force: bool = False) -> tuple[AsyncSession, async_scoped_session]:
         if force:
             return self.scoped_session_(), self.scoped_session_
         else:

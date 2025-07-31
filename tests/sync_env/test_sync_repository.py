@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, scoped_session
 
-from tests.sync_env.conftest import Post
+from tests.conftest import Post
 from transactional_sqlalchemy import (
     ISessionRepository,
     ITransactionalRepository,
@@ -20,6 +20,7 @@ class TransactionSyncRepositoryImpl(ITransactionalRepository):
     @transactional(propagation=Propagation.REQUIRES)
     def requires(self, post: Post, session: Session):
         session.add(post)
+        session.flush()
 
     @transactional(propagation=Propagation.REQUIRES)
     def requires_error(self, post: Post, session: Session):
@@ -123,14 +124,7 @@ class TestSyncRequiresTransactional:
         # 정상적으로 DB에 저장되면 됨
         post = Post(**{"title": "tests", "content": "tests"})
 
-        try:
-            repository_sync.requires(post)
-            # sess = transaction_context.get()
-            # sess.commit()
-            # sess.refresh(post)
-        except:
-            logging.exception("")
-            raise
+        repository_sync.requires(post)
 
         assert post.id is not None
 

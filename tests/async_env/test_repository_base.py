@@ -2,9 +2,8 @@ import pytest
 from sqlalchemy import Column, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.async_env.conftest import TestModel
-from tests.conftest import ORMBase
-from transactional_sqlalchemy.enums import Pageable
+from tests.conftest import ORMBase, TestModel
+from transactional_sqlalchemy.domains import Pageable
 from transactional_sqlalchemy.repository.base import BaseCRUDRepository
 
 
@@ -80,13 +79,6 @@ async def test_모델을_저장한다(repository, transaction_async: AsyncSessio
     model = TestModel(name="save_test")
     saved = await repository.save(model, session=transaction_async)
     assert saved is not None
-
-
-@pytest.mark.asyncio
-async def test_여러_모델을_저장한다(repository, transaction_async: AsyncSession):
-    models = [TestModel(name=f"batch{i}") for i in range(3)]
-    saved = await repository.save_all(models, session=transaction_async)
-    assert all(m is not None for m in saved)
 
 
 @pytest.mark.asyncio

@@ -1,21 +1,20 @@
 import pytest
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from repository.base import BaseCRUDTransactionRepository, MODEL_TYPE
-from tests.async_env.conftest import Post
+from tests.conftest import Post
 from transactional_sqlalchemy import Propagation, transactional
+from transactional_sqlalchemy.repository.base import MODEL_TYPE, BaseCRUDTransactionRepository
 
 
 class BaseRequiresNewCRUDTransactionRepositoryImpl(BaseCRUDTransactionRepository[Post]):
     @transactional(propagation=Propagation.REQUIRES_NEW)
-    async def save(self, model: MODEL_TYPE, *, session: AsyncSession) -> MODEL_TYPE:
-        return await super().save(model, session=session)
+    async def save(self, model: MODEL_TYPE, *, session: AsyncSession = None) -> MODEL_TYPE:
+        return await super().save(model)
 
     @transactional(propagation=Propagation.REQUIRES_NEW)
-    async def save_error(self, model: MODEL_TYPE, *, session: AsyncSession) -> MODEL_TYPE:
-        result = await super().save(model, session=session)  # noqa
+    async def save_error(self, model: MODEL_TYPE, *, session: AsyncSession = None) -> MODEL_TYPE:
+        await super().save(model)
         raise Exception()
-        return result  # noqa
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -62,7 +61,6 @@ class TestRequiresNewTransactional:
             # 새로운 트랜잭션이 생겨서 따로 실행되나 롤백
             with pytest.raises(Exception):
                 await repository_async.save_error(new_post)
-                raise Exception()
 
             await sess.commit()
             await sess.refresh(post)

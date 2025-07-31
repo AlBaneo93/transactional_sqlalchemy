@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from repository.base import BaseCRUDTransactionRepository, MODEL_TYPE
-from tests.async_env.conftest import Post
+from tests.conftest import Post
 from transactional_sqlalchemy import Propagation, transactional
+from transactional_sqlalchemy.repository.base import MODEL_TYPE, BaseCRUDTransactionRepository
 
 
 class BaseCRUDRequiresTransactionRepositoryImpl(BaseCRUDTransactionRepository[Post]):
@@ -13,9 +13,8 @@ class BaseCRUDRequiresTransactionRepositoryImpl(BaseCRUDTransactionRepository[Po
 
     @transactional(propagation=Propagation.REQUIRES)
     async def save_error(self, model: MODEL_TYPE, *, session: AsyncSession) -> MODEL_TYPE:
-        result = await super().save(model, session=session)  # noqa
+        await super().save(model)
         raise Exception()
-        return result  # noqa
 
 
 @pytest.fixture(scope="module", autouse=True)
