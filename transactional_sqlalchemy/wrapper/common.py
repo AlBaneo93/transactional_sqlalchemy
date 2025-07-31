@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Generator
-from typing import Any, Union
+from typing import Any
 
 from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 from sqlalchemy.ext.asyncio.session import AsyncSession, AsyncSessionTransaction
@@ -36,7 +36,7 @@ def __get_safe_kwargs(kwargs):
     return kwargs, no_rollback_for, rollback_for
 
 
-def do_commit(sess: Union[Session, AsyncSession]) -> None:
+def do_commit(sess: Session | AsyncSession) -> None:
     if get_session_stack_size() == 0:
         # 일반적인 경우, 현재 세션 스택이 모두 비어있을때 커밋해야함
         if isinstance(sess, AsyncSession):
@@ -51,7 +51,7 @@ def do_commit(sess: Union[Session, AsyncSession]) -> None:
                 sess.commit()
 
 
-def do_rollback(sess: Union[Session, AsyncSession, AsyncSessionTransaction]):
+def do_rollback(sess: Session | AsyncSession | AsyncSessionTransaction):
     if isinstance(sess, AsyncSessionTransaction):
         if sess.is_active:
             sess.rollback()
@@ -66,7 +66,7 @@ def do_rollback(sess: Union[Session, AsyncSession, AsyncSessionTransaction]):
         sess.rollback()
 
 
-def do_close(sess: Union[Session, AsyncSession], origin_autoflush: bool, is_session_owner: bool) -> None:
+def do_close(sess: Session | AsyncSession, origin_autoflush: bool, is_session_owner: bool) -> None:
     """세션을 닫고, 현재 컨텍스트에서 세션을 제거합니다."""
     if isinstance(sess, AsyncSession):
 
@@ -90,7 +90,7 @@ def get_new_session(
     return manager.get_new_async_session(force=force)
 
 
-def set_read_only(sess: Union[Session, AsyncSession]) -> Generator[None, Any, None]:
+def set_read_only(sess: Session | AsyncSession) -> Generator[None, Any, None]:
     try:
         sess.autoflush = False
         yield

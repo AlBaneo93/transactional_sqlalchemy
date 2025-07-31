@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
-from typing import Optional, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from sqlalchemy.orm import Session, scoped_session
@@ -22,8 +21,7 @@ def verify_config(**kwargs):
 
 
 transaction_context: ContextVar[Stack[Session | AsyncSession]] = ContextVar("transaction_context", default=Stack())
-# transaction_option_context: ContextVar[Optional[dict]] = ContextVar("transaction_option_context", default=None)
-scoped_session_context: ContextVar[Optional[scoped_session | async_scoped_session]] = ContextVar(
+scoped_session_context: ContextVar[scoped_session | async_scoped_session | None] = ContextVar(
     "scoped_session_context", default=None
 )
 
@@ -36,7 +34,7 @@ class ScopeAndSessionManager:
             cls.__instance = super().__new__(cls)
         return cls.__instance
 
-    def __init__(self, scoped_session_: Union[async_scoped_session, scoped_session]):
+    def __init__(self, scoped_session_: async_scoped_session | scoped_session):
         """Args:
         scoped_session_ ():
         """
@@ -80,7 +78,7 @@ class SessionHandler:
 
 
 def init_manager(
-    session: Union[async_scoped_session, scoped_session],
+    session: async_scoped_session | scoped_session,
 ) -> None:
     handler = SessionHandler()
     manager = ScopeAndSessionManager(scoped_session_=session)

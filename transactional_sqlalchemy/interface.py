@@ -19,9 +19,9 @@ class AutoSessionMixIn(ABC):
                     with_transaction_context_func = with_transaction_context(attr_value)
                     # 데코레이터가 적용된 함수에 _with_transaction_context_decorated 속성 추가
                     setattr(
-                            with_transaction_context_func,
-                            "_with_transaction_context_decorated",
-                            True,
+                        with_transaction_context_func,
+                        "_with_transaction_context_decorated",
+                        True,
                     )
                     setattr(cls, attr_name, with_transaction_context_func)
 
@@ -52,7 +52,7 @@ class AutoTransactionalMixIn(ABC):
 
             # 제외할 메서드들 (필요에 따라 수정)
             exclude_methods = {
-                    "model",  # 속성
+                "model",  # 속성
             }
 
             if attr_name in exclude_methods:
@@ -79,7 +79,7 @@ class AutoTransactionalMixIn(ABC):
                     setattr(decorated_func, "_transactional_decorated", True)
                     setattr(cls, attr_name, decorated_func)
 
-                except Exception as e:
+                except Exception:
                     pass
 
 

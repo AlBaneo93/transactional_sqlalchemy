@@ -103,3 +103,8 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 log_cli_format = "%(levelname)-8s %(asctime)s %(name)s::%(filename)s:%(funcName)s:%(lineno)d: %(message)s"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]

@@ -13,8 +13,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool.impl import StaticPool
 
 from tests.conftest import ORMBase
-from transactional_sqlalchemy import init_manager, transaction_context
-from transactional_sqlalchemy.utils.structure import Stack
+from transactional_sqlalchemy import init_manager
 from transactional_sqlalchemy.utils.utils import add_session_to_context
 
 

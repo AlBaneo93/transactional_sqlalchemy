@@ -1,0 +1,40 @@
+repos:
+  # Ruff 린팅과 포매팅
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      # 린트 체크
+      - id: ruff
+        name: ruff-check
+        args: [ --fix ,--config=pyproject.toml ]
+        types_or: [python, pyi, jupyter]
+      # 포맷팅
+      - id: ruff-format
+        name: ruff-format
+        types_or: [python, pyi, jupyter]
+        args: [ --config=pyproject.toml ]
+
+  # Python 테스트
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+        args: [tests/, -v, --tb=short]
+
+  # 기본 체크들
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
