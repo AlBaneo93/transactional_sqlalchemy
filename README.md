@@ -85,3 +85,150 @@ class PostRepository(ISessionRepository):
 
     async def create(self, post: Post, *, session: AsyncSession = None) -> None: ...
 ```
+
+### 3. 기본 CRUD Repository 사용
+
+패키지에서 제공하는 기본 CRUD Repository 클래스를 상속하여 빠르게 Repository를 구현할 수 있습니다.
+
+#### BaseCRUDRepository
+
+기본적인 CRUD 연산을 제공하는 베이스 클래스입니다.
+
+```python
+from transactional_sqlalchemy import BaseCRUDRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+from your_models import User
+
+class UserRepository(BaseCRUDRepository[User]):
+    pass  # 기본 CRUD 메서드들이 자동으로 사용 가능
+
+# 사용 예시
+user_repo = UserRepository(User)
+
+# 기본 제공 메서드들
+user = await user_repo.find_by_id(1, session=session)
+users = await user_repo.find_all(session=session)
+saved_user = await user_repo.save(new_user, session=session)
+exists = await user_repo.exists_by_id(1, session=session)
+count = await user_repo.count(session=session)
+```
+
+**제공되는 메서드:**
+
+- `find_by_id(id, *, session)`: ID로 단일 모델 조회
+- `find(where=None, *, session)`: 조건으로 단일 모델 조회
+- `find_all(*, pageable=None, where=None, session)`: 전체 모델 조회 (페이징 지원)
+- `find_all_by_id(ids, *, session)`: 여러 ID로 모델들 조회
+- `save(model, *, session)`: 모델 저장/업데이트 (upsert)
+- `exists(where=None, *, session)`: 모델 존재 여부 확인
+- `exists_by_id(id, *, where=None, session)`: ID로 존재 여부 확인
+- `count(*, where=None, session)`: 모델 개수 조회
+
+#### BaseCRUDTransactionRepository
+
+`BaseCRUDRepository`에 자동 트랜잭션 관리 기능이 추가된 클래스입니다.
+
+```python
+from transactional_sqlalchemy import BaseCRUDTransactionRepository, Propagation
+from your_models import User
+
+class UserTransactionRepository(BaseCRUDTransactionRepository[User]):
+    # 모든 메서드에 자동으로 @transactional 데코레이터가 적용됩니다
+    pass
+
+# 사용 예시
+user_repo = UserTransactionRepository(User)
+
+# 트랜잭션이 자동으로 관리됩니다
+user = await user_repo.find_by_id(1)  # session 매개변수 불필요
+saved_user = await user_repo.save(new_user)  # 자동 커밋/롤백
+```
+
+#### 조건부 조회와 페이징
+
+```python
+from sqlalchemy import and_
+from transactional_sqlalchemy import Pageable
+
+# where 조건 사용
+active_users = await user_repo.find_all(
+    where=and_(User.is_active == True, User.age >= 18),
+    session=session
+)
+
+# 페이징 사용
+pageable = Pageable(offset=0, limit=10)
+users_page = await user_repo.find_all(
+    pageable=pageable,
+    session=session
+)
+
+# 조건부 개수 조회
+adult_count = await user_repo.count(
+    where=User.age >= 18,
+    session=session
+)
+```
+
+#### 커스텀 메서드 추가
+
+```python
+class UserRepository(BaseCRUDTransactionRepository[User]):
+
+    @transactional(propagation=Propagation.REQUIRES)
+    async def find_by_email(self, email: str, *, session: AsyncSession) -> User | None:
+        return await self.find(where=User.email == email, session=session)
+
+    @transactional(propagation=Propagation.REQUIRES)
+    async def create_user_with_profile(self, user_data: dict, profile_data: dict, *, session: AsyncSession) -> User:
+        # 복잡한 비즈니스 로직
+        user = User(**user_data)
+        saved_user = await self.save(user, session=session)
+
+        profile = UserProfile(user_id=saved_user.id, **profile_data)
+        session.add(profile)
+
+        return saved_user
+```
+
+#### 고급 사용 예시
+
+```python
+from sqlalchemy import or_, desc
+from transactional_sqlalchemy import BaseCRUDTransactionRepository, Propagation
+
+class UserService(BaseCRUDTransactionRepository[User]):
+
+    @transactional(propagation=Propagation.REQUIRES)
+    async def search_users(self, keyword: str, *, session: AsyncSession) -> list[User]:
+        """이름 또는 이메일로 사용자 검색"""
+        return await self.find_all(
+            where=or_(
+                User.name.ilike(f"%{keyword}%"),
+                User.email.ilike(f"%{keyword}%")
+            ),
+            session=session
+        )
+
+    @transactional(propagation=Propagation.REQUIRES)
+    async def get_user_stats(self, *, session: AsyncSession) -> dict:
+        """사용자 통계 조회"""
+        total_users = await self.count(session=session)
+        active_users = await self.count(where=User.is_active == True, session=session)
+
+        return {
+            "total": total_users,
+            "active": active_users,
+            "inactive": total_users - active_users
+        }
+
+    @transactional(propagation=Propagation.REQUIRES_NEW)
+    async def deactivate_user(self, user_id: int, *, session: AsyncSession) -> User:
+        """사용자 비활성화 (새로운 트랜잭션)"""
+        user = await self.find_by_id(user_id, session=session)
+        if not user:
+            raise ValueError("User not found")
+
+        user.is_active = False
+        return await self.save(user, session=session)
+```
