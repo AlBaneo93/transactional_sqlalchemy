@@ -32,19 +32,21 @@ async = ["sqlalchemy[asyncio]>=2.0.0"]
 dev = [
     "aiosqlite>=0.21.0",
     "pre-commit>=4.2.0",
-    "pytest[asyncio]>=8.3.5",
-    "pytest-asyncio>=0.25.3",
-    "pytest-sqlalchemy>=0.2.1",
-    "pytest-xdist>=3.8.0",
-    "pytest-cov>=6.2.1",
-    "pytest-html>=4.1.1",
-    "ruff>=0.1.0",
 ]
 test = [
     "pytest[asyncio]>=8.3.5",
     "pytest-asyncio>=0.25.3",
     "pytest-cov>=6.2.1",
     "aiosqlite>=0.21.0",
+    "pytest[asyncio]>=8.3.5",
+    "pytest-asyncio>=0.25.3",
+    "pytest-sqlalchemy>=0.2.1",
+    "pytest-xdist>=3.8.0",
+    "pytest-cov>=6.2.1",
+    "pytest-html>=4.1.1",
+]
+lint = [
+    "ruff>=0.1.0",
 ]
 
 [build-system]
