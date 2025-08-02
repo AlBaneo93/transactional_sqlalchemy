@@ -50,15 +50,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: "Set up Python"
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version-file: ".python-version"
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
+      uses: astral-sh/setup-uv@v6
+
+
 
     - name: Install build dependencies
       run: |
@@ -97,18 +97,17 @@ jobs:
   publish-to-testpypi:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # stage 브랜치에 push 될 때만 실행
+    if: github.event_name == 'push' && github.ref == 'refs/heads/stage'
     environment:
       name: testpypi
       url: https://test.pypi.org/p/transactional-sqlalchemy
-
     steps:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
         name: dist
         path: dist/
-
     - name: Publish to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
@@ -117,20 +116,19 @@ jobs:
         skip-existing: true
 
   publish-to-pypi:
-    needs: [build, publish-to-testpypi]
+    needs: build # build 단계에만 의존하도록 변경
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    # v로 시작하는 태그가 push 될 때만 실행
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment:
       name: pypi
       url: https://pypi.org/p/transactional-sqlalchemy
-
     steps:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
         name: dist
         path: dist/
-
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
