@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSessionTransaction
 
 from transactional_sqlalchemy.config import SessionHandler
 from transactional_sqlalchemy.enums import Propagation
-from transactional_sqlalchemy.utils.utils import (
+from transactional_sqlalchemy.utils.transaction_util import (
     add_session_to_context,
     get_session_from_context,
     remove_session_from_context,

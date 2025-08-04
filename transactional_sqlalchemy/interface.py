@@ -2,7 +2,7 @@ from abc import ABC
 
 from transactional_sqlalchemy.decorator.transactional import transactional
 from transactional_sqlalchemy.enums import Propagation
-from transactional_sqlalchemy.utils.utils import with_transaction_context
+from transactional_sqlalchemy.utils.transaction_util import with_transaction_context
 
 
 class AutoSessionMixIn(ABC):

@@ -23,11 +23,31 @@ class Post(ORMBase):
 
 
 # 테스트용 모델 정의
-class TestModel(ORMBase):
+class SampleModel(ORMBase):
     __tablename__ = "test_model"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50))
+
+
+# 복합키 테스트용 모델
+class OrderItem(ORMBase):
+    __tablename__ = "order_items"
+
+    order_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    price: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# 복합키 (3개 컬럼) 테스트용 모델
+class UserRolePermission(ORMBase):
+    __tablename__ = "user_role_permissions"
+
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    role_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    permission_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    granted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 logging.basicConfig(level=logging.INFO)

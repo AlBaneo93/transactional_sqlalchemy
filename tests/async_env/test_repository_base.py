@@ -1,25 +1,24 @@
 import pytest
-from sqlalchemy import Column, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.conftest import ORMBase, TestModel
+from tests.conftest import SampleModel
 from transactional_sqlalchemy.domains import Pageable
 from transactional_sqlalchemy.repository.base import BaseCRUDRepository
 
 
-class TestModelRepository(BaseCRUDRepository[TestModel]): ...
+class SampleModelRepository(BaseCRUDRepository[SampleModel]): ...
 
 
 # 공통 fixture: BaseCRUDRepository 인스턴스 생성
 @pytest.fixture
 def repository():
-    return TestModelRepository()
+    return SampleModelRepository()
 
 
 @pytest.mark.asyncio
 async def test_아이디로_존재하는_모델을_조회한다(repository, transaction_async: AsyncSession):
     # 사전 데이터 준비
-    model = TestModel(name="test")
+    model = SampleModel(name="test")
     transaction_async.add(model)
     await transaction_async.commit()
 
@@ -38,7 +37,7 @@ async def test_존재하지_않는_아이디_조회시_none_반환(repository, t
 @pytest.mark.asyncio
 async def test_모든_모델을_조회한다(repository, transaction_async: AsyncSession):
     # 데이터 준비
-    models = [TestModel(name=f"name{i}") for i in range(3)]
+    models = [SampleModel(name=f"name{i}") for i in range(3)]
     transaction_async.add_all(models)
     await transaction_async.commit()
 
@@ -48,7 +47,7 @@ async def test_모든_모델을_조회한다(repository, transaction_async: Asyn
 
 @pytest.mark.asyncio
 async def test_페이징_기능이_동작한다(repository, transaction_async: AsyncSession):
-    models = [TestModel(name=f"name{i}") for i in range(10)]
+    models = [SampleModel(name=f"name{i}") for i in range(10)]
     transaction_async.add_all(models)
     await transaction_async.commit()
 
@@ -59,7 +58,7 @@ async def test_페이징_기능이_동작한다(repository, transaction_async: A
 
 @pytest.mark.asyncio
 async def test_여러_아이디로_모델_목록을_조회한다(repository, transaction_async: AsyncSession):
-    models = [TestModel(name=f"name{i}") for i in range(3)]
+    models = [SampleModel(name=f"name{i}") for i in range(3)]
     transaction_async.add_all(models)
     await transaction_async.commit()
 
@@ -76,14 +75,14 @@ async def test_빈_아이디_목록_조회시_빈_리스트_반환(repository, t
 
 @pytest.mark.asyncio
 async def test_모델을_저장한다(repository, transaction_async: AsyncSession):
-    model = TestModel(name="save_test")
+    model = SampleModel(name="save_test")
     saved = await repository.save(model, session=transaction_async)
     assert saved is not None
 
 
 @pytest.mark.asyncio
 async def test_아이디_존재여부를_확인한다(repository, transaction_async: AsyncSession):
-    model = TestModel(name="exists_test")
+    model = SampleModel(name="exists_test")
     transaction_async.add(model)
     await transaction_async.commit()
 
@@ -105,21 +104,4 @@ async def test_모델_전체_개수를_조회한다(repository, transaction_asyn
 
 def test_기본키_컬럼_단일_반환(repository):
     pk = repository._BaseCRUDRepository__get_pk_columns()
-    assert pk.name == "id"
-
-
-def test_복합_기본키가_있으면_에러_발생():
-    class MultiPKModel(ORMBase):
-        __tablename__ = "multipk"
-        id1 = Column(Integer, primary_key=True)
-        id2 = Column(Integer, primary_key=True)
-
-    # 새로운 방식: Generic 타입으로 상속
-    class MultiPKRepository(BaseCRUDRepository[MultiPKModel]):
-        pass
-
-    repo = MultiPKRepository()
-    import pytest
-
-    with pytest.raises(ValueError):
-        repo._BaseCRUDRepository__get_pk_columns()
+    assert pk[0].name == "id"

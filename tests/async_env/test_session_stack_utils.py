@@ -1,6 +1,6 @@
 # import pytest
 #
-# from transactional_sqlalchemy.utils.utils import (
+# from transactional_sqlalchemy.utils.transaction_util import (
 #     add_session_to_context, get_current_transaction_depth, get_session_stack_size, has_active_transaction,
 #     remove_session_from_context,
 # )

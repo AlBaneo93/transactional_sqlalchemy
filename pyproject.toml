@@ -95,7 +95,7 @@ explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -q -n auto --cov=transactional_sqlalchemy --cov-report=term-missing"
+addopts = "-ra -q --cov=transactional_sqlalchemy --cov-report=term-missing"
 #asyncio_default_fixture_loop_scope = "function"
 asyncio_mode = "auto"
 

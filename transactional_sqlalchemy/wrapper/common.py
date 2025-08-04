@@ -11,7 +11,7 @@ from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.session import Session
 
 from transactional_sqlalchemy.config import ScopeAndSessionManager
-from transactional_sqlalchemy.utils.utils import get_session_stack_size, remove_session_from_context
+from transactional_sqlalchemy.utils.transaction_util import get_session_stack_size, remove_session_from_context
 
 
 def __check_is_commit(

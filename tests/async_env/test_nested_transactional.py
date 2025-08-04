@@ -10,7 +10,7 @@ from transactional_sqlalchemy import (
     Propagation,
     transactional,
 )
-from transactional_sqlalchemy.utils.utils import (
+from transactional_sqlalchemy.utils.transaction_util import (
     get_session_stack_size,
 )
 
