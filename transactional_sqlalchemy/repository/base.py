@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, get_args, get_origin
 
 from sqlalchemy import exists
 from sqlalchemy.engine.result import Result
@@ -19,14 +19,41 @@ MODEL_TYPE = TypeVar("MODEL_TYPE", bound=DeclarativeBase)
 
 
 class BaseCRUDRepository(Generic[MODEL_TYPE], ISessionRepository):
-    def __init__(self, model: type[MODEL_TYPE]) -> None:
-        self.model: MODEL_TYPE = model
+    # model: type[MODEL_TYPE] = None  # 클래스 변수로 기본값 설정
+
+    def __init_subclass__(cls, **kwargs):
+        """서브클래스 생성시 model을 클래스 변수로 설정"""
+        super().__init_subclass__()
+        cls.__model = cls._extract_model_from_generic()
+
+    def __init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
+
+    @classmethod
+    def _extract_model_from_generic(cls) -> type[MODEL_TYPE] | None:
+        """Generic 타입 파라미터에서 모델 타입 추출"""
+        # 방법 1: __orig_bases__ 확인
+        if hasattr(cls, "__orig_bases__"):
+            for base in cls.__orig_bases__:
+                origin = get_origin(base)
+                # 더 유연한 비교
+                if origin is not None and (
+                    origin is BaseCRUDRepository
+                    or (hasattr(origin, "__name__") and origin.__name__ == "BaseCRUDRepository")
+                ):
+                    args = get_args(base)
+                    if args and len(args) > 0:
+                        return args[0]
+
+        # 방법 2: __args__ 확인 (Generic[T] 형태)
+        if hasattr(cls, "__args__") and cls.__args__:
+            return cls.__args__[0]
 
     async def find_by_id(self, id: Any, *, session: AsyncSession = None) -> MODEL_TYPE | None:
         pk_column: Column = self.__get_pk_columns()
 
-        stmt: select = select(self.model).where(pk_column == id)
+        model = self.__get_model()
+        stmt: select = select(model).where(pk_column == id)
         query_result: Result = await session.execute(stmt)
         return query_result.scalar_one_or_none()
 
@@ -37,7 +64,7 @@ class BaseCRUDRepository(Generic[MODEL_TYPE], ISessionRepository):
         :param session: SQLAlchemy의 AsyncSession 인스턴스
         :return: 조건에 맞는 단일 모델 인스턴스 또는 None
         """
-        stmt: select = select(self.model)
+        stmt: select = select(self.__get_model())
         if where is None:
             self.logger.warning("Where condition is None, returning all models.")
         stmt = self.__set_where(stmt, where)
@@ -47,7 +74,7 @@ class BaseCRUDRepository(Generic[MODEL_TYPE], ISessionRepository):
     async def find_all(
         self, *, pageable: Pageable | None = None, where: ColumnElement | None = None, session: AsyncSession = None
     ) -> list[MODEL_TYPE]:
-        stmt: select = select(self.model)
+        stmt: select = select(self.__get_model())
         stmt = self.__set_where(stmt, where)
         if pageable:
             stmt = stmt.offset(pageable.offset).limit(pageable.limit)
@@ -56,7 +83,7 @@ class BaseCRUDRepository(Generic[MODEL_TYPE], ISessionRepository):
 
     async def find_all_by_id(self, ids: list[Any], *, session: AsyncSession = None) -> list[MODEL_TYPE]:
         pk_column = self.__get_pk_columns()
-        stmt: select = select(self.model).where(pk_column.in_(ids))
+        stmt: select = select(self.__get_model()).where(pk_column.in_(ids))
         query_result: Result = await session.execute(stmt)
         return list(query_result.scalars().all())
 
@@ -92,7 +119,7 @@ class BaseCRUDRepository(Generic[MODEL_TYPE], ISessionRepository):
         :param session: SQLAlchemy의 AsyncSession 인스턴스
         :return: 조건에 맞는 모델이 존재하면 True, 그렇지 않으면 False
         """
-        stmt: select = select(exists().where(where)) if where else select(exists().select_from(self.model))
+        stmt: select = select(exists().where(where)) if where else select(exists().select_from(self.__get_model()))
         query_result: Result = await session.execute(stmt)
         return query_result.scalar()
 
@@ -114,12 +141,12 @@ class BaseCRUDRepository(Generic[MODEL_TYPE], ISessionRepository):
         :rtype: int
         """
         pk_column = self.__get_pk_columns()
-        stmt: select = select(func.count(pk_column)).select_from(self.model)
+        stmt: select = select(func.count(pk_column)).select_from(self.__get_model())
         stmt = self.__set_where(stmt, where)
         return await session.scalar(stmt)
 
     def __get_pk_columns(self) -> Column:
-        pk_columns = self.model.__mapper__.primary_key
+        pk_columns = self.__get_model().__mapper__.primary_key
         if len(pk_columns) != 1:
             raise ValueError("Model must have a single primary key column.")
         pk_column = pk_columns[0]
@@ -129,6 +156,18 @@ class BaseCRUDRepository(Generic[MODEL_TYPE], ISessionRepository):
         if where is not None:
             stmt = stmt.where(where)
         return stmt
+
+    def __get_model(self) -> type[MODEL_TYPE]:
+        """
+        제네릭 타입 T에 바인딩된 실제 모델 클래스를 찾아 반환합니다.
+        __orig_bases__를 순회하여 더 안정적으로 타입을 찾습니다.
+        """
+        for base in self.__class__.__orig_bases__:
+            # 제네릭 타입의 인자(arguments)를 가져옵니다.
+            args = get_args(base)
+            if args:
+                return args[0]
+        raise TypeError("제네릭 타입 T에 대한 모델 클래스를 찾을 수 없습니다.")
 
 
 class BaseCRUDTransactionRepository(BaseCRUDRepository[MODEL_TYPE], ITransactionalRepository): ...

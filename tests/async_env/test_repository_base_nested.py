@@ -26,7 +26,7 @@ class BaseNestedCRUDTransactionRepositoryImpl(BaseCRUDTransactionRepository[Post
 
 @pytest.fixture(scope="module", autouse=True)
 def repository_async() -> BaseNestedCRUDTransactionRepositoryImpl:
-    repo = BaseNestedCRUDTransactionRepositoryImpl(Post)
+    repo = BaseNestedCRUDTransactionRepositoryImpl()
     return repo
 
 

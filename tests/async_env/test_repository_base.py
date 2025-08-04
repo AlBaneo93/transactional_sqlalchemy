@@ -13,7 +13,7 @@ class TestModelRepository(BaseCRUDRepository[TestModel]): ...
 # 공통 fixture: BaseCRUDRepository 인스턴스 생성
 @pytest.fixture
 def repository():
-    return TestModelRepository(TestModel)
+    return TestModelRepository()
 
 
 @pytest.mark.asyncio
@@ -114,7 +114,11 @@ def test_복합_기본키가_있으면_에러_발생():
         id1 = Column(Integer, primary_key=True)
         id2 = Column(Integer, primary_key=True)
 
-    repo = BaseCRUDRepository(MultiPKModel)
+    # 새로운 방식: Generic 타입으로 상속
+    class MultiPKRepository(BaseCRUDRepository[MultiPKModel]):
+        pass
+
+    repo = MultiPKRepository()
     import pytest
 
     with pytest.raises(ValueError):

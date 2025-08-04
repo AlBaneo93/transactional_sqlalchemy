@@ -1,6 +1,6 @@
 [project]
 name = "transactional-sqlalchemy"
-version = "0.1.5"
+version = "0.1.6"
 description = "transactional management using sqlalchemy"
 authors = [{ name = "alban", email = 'decade_vesper.8i@icloud.com' }]
 license-files = ["LICENSE"]

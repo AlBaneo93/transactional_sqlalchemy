@@ -19,7 +19,7 @@ class BaseCRUDRequiresTransactionRepositoryImpl(BaseCRUDTransactionRepository[Po
 
 @pytest.fixture(scope="module", autouse=True)
 def repository_async() -> BaseCRUDRequiresTransactionRepositoryImpl:
-    repo = BaseCRUDRequiresTransactionRepositoryImpl(Post)
+    repo = BaseCRUDRequiresTransactionRepositoryImpl()
     return repo
 
 

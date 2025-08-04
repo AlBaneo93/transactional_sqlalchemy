@@ -103,7 +103,7 @@ class UserRepository(BaseCRUDRepository[User]):
     pass  # 기본 CRUD 메서드들이 자동으로 사용 가능
 
 # 사용 예시
-user_repo = UserRepository(User)
+user_repo = UserRepository()
 
 # 기본 제공 메서드들
 user = await user_repo.find_by_id(1, session=session)
@@ -137,7 +137,7 @@ class UserTransactionRepository(BaseCRUDTransactionRepository[User]):
     pass
 
 # 사용 예시
-user_repo = UserTransactionRepository(User)
+user_repo = UserTransactionRepository()
 
 # 트랜잭션이 자동으로 관리됩니다
 user = await user_repo.find_by_id(1)  # session 매개변수 불필요
