@@ -21,9 +21,6 @@ def verify_config(**kwargs):
 
 
 transaction_context: ContextVar[Stack[Session | AsyncSession]] = ContextVar("transaction_context", default=Stack())
-scoped_session_context: ContextVar[scoped_session | async_scoped_session | None] = ContextVar(
-    "scoped_session_context", default=None
-)
 
 
 class ScopeAndSessionManager:

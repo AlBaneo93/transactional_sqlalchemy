@@ -31,7 +31,14 @@ def allocate_session_in_args(bound_args: inspect.BoundArguments):
 
 
 def with_transaction_context(func):
-    """함수의 session 파라미터를 자동으로 transaction_context에서 가져오도록 설정하는 데코레이터"""
+    """함수의 session 파라미터를 자동으로 transaction_context에서 가져오도록 설정하는 데코레이터.
+
+    Args:
+        func: 데코레이터를 적용할 함수
+
+    Returns:
+        함수: 래핑된 함수 (async 또는 sync)
+    """
     sig = inspect.signature(func)
 
     if iscoroutinefunction(unwrap(func)):
@@ -101,7 +108,14 @@ def reset_pk_fields(models: Any):
 
 
 def add_session_to_context(sess_: AsyncSession | Session) -> None:
-    """트랜잭션 컨텍스트에 세션을 추가합니다."""
+    """트랜잭션 컨텍스트에 세션을 추가합니다.
+
+    Args:
+        sess_ (AsyncSession | Session): 추가할 세션 인스턴스
+
+    Raises:
+        ValueError: 세션이 None인 경우
+    """
     if sess_ is None:
         raise ValueError("세션이 None입니다.")
     stack: Stack[AsyncSession | Session] = transaction_context.get()
@@ -109,7 +123,11 @@ def add_session_to_context(sess_: AsyncSession | Session) -> None:
 
 
 def get_session_from_context() -> AsyncSession | Session | None:
-    """트랜잭션 컨텍스트에서 세션을 가져옵니다."""
+    """트랜잭션 컨텍스트에서 세션을 가져옵니다.
+
+    Returns:
+        AsyncSession | Session | None: 현재 활성 세션 또는 None (세션이 없는 경우)
+    """
     stack: Stack[AsyncSession | Session] = transaction_context.get()
     if stack.size() <= 0:
         return None
@@ -117,7 +135,11 @@ def get_session_from_context() -> AsyncSession | Session | None:
 
 
 def remove_session_from_context() -> None:
-    """트랜잭션 컨텍스트에서 세션을 제거합니다."""
+    """트랜잭션 컨텍스트에서 세션을 제거합니다.
+
+    Raises:
+        ValueError: 트랜잭션 컨텍스트에 세션이 없는 경우
+    """
     stack: Stack[AsyncSession | Session] = transaction_context.get()
     if stack.size() <= 0:
         raise ValueError("트랜잭션 컨텍스트에 세션이 없습니다.")
@@ -127,16 +149,28 @@ def remove_session_from_context() -> None:
 
 
 def get_session_stack_size() -> int:
-    """트랜잭션 컨텍스트의 세션 스택 크기를 반환합니다."""
+    """트랜잭션 컨텍스트의 세션 스택 크기를 반환합니다.
+
+    Returns:
+        int: 현재 세션 스택에 저장된 세션의 개수
+    """
     stack: Stack[AsyncSession | Session] = transaction_context.get()
     return stack.size() if stack else 0
 
 
 def has_active_transaction() -> bool:
-    """현재 활성 트랜잭션이 있는지 확인합니다."""
+    """현재 활성 트랜잭션이 있는지 확인합니다.
+
+    Returns:
+        bool: 활성 트랜잭션이 있으면 True, 그렇지 않으면 False
+    """
     return get_session_stack_size() > 0
 
 
 def get_current_transaction_depth() -> int:
-    """현재 트랜잭션 중첩 깊이를 반환합니다."""
+    """현재 트랜잭션 중첩 깊이를 반환합니다.
+
+    Returns:
+        int: 현재 트랜잭션의 중첩 깊이 (0은 트랜잭션 없음)
+    """
     return get_session_stack_size()

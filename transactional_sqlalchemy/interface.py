@@ -6,7 +6,11 @@ from transactional_sqlalchemy.utils.transaction_util import with_transaction_con
 
 
 class AutoSessionMixIn(ABC):
-    """IRepository를 상속받는 모든 클래스의 Async 메서드에 자동으로 `with_transaction_context` 적용"""
+    """IRepository를 상속받는 모든 클래스의 Async 메서드에 자동으로 `with_transaction_context` 적용.
+
+    이 클래스를 상속받으면 모든 public 메서드에 자동으로
+    with_transaction_context 데코레이터가 적용되어 세션 관리가 자동화됩니다.
+    """
 
     @classmethod
     def __init_subclass__(cls):
@@ -27,7 +31,11 @@ class AutoSessionMixIn(ABC):
 
 
 class AutoTransactionalMixIn(ABC):
-    """Repository 클래스에서 상속받으면 자동으로 transactional 데코레이터를 적용하는 추상클래스"""
+    """Repository 클래스에서 상속받으면 자동으로 transactional 데코레이터를 적용하는 추상클래스.
+
+    이 클래스를 상속받으면 모든 public 메서드에 자동으로
+    transactional 데코레이터가 적용되어 트랜잭션 관리가 자동화됩니다.
+    """
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -84,10 +92,19 @@ class AutoTransactionalMixIn(ABC):
 
 
 class ISessionRepository(AutoSessionMixIn):
-    """세션을 사용하는 Repository에 대한 인터페이스"""
+    """세션을 사용하는 Repository에 대한 인터페이스.
+
+    이 인터페이스를 구현하면 자동으로 세션 관리 기능이 제공됩니다.
+    """
 
     pass
 
 
 class ITransactionalRepository(AutoTransactionalMixIn, AutoSessionMixIn):
+    """트랜잭션과 세션을 자동으로 관리하는 Repository 인터페이스.
+
+    AutoTransactionalMixIn과 AutoSessionMixIn을 모두 상속받아
+    트랜잭션 관리와 세션 관리 기능을 모두 제공합니다.
+    """
+
     pass

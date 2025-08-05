@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Generator
 from typing import Any
 
 from sqlalchemy.ext.asyncio.scoping import async_scoped_session
-from sqlalchemy.ext.asyncio.session import AsyncSession, AsyncSessionTransaction
+from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.session import Session
 
 from transactional_sqlalchemy.config import ScopeAndSessionManager
-from transactional_sqlalchemy.utils.transaction_util import get_session_stack_size, remove_session_from_context
 
 
 def __check_is_commit(
@@ -34,54 +32,6 @@ def __get_safe_kwargs(kwargs):
     kwargs = {k: v for k, v in kwargs.items() if not k.startswith("__")}
 
     return kwargs, no_rollback_for, rollback_for
-
-
-def do_commit(sess: Session | AsyncSession) -> None:
-    if get_session_stack_size() == 0:
-        # 일반적인 경우, 현재 세션 스택이 모두 비어있을때 커밋해야함
-        if isinstance(sess, AsyncSession):
-
-            async def commit_async(sess_: AsyncSession):
-                if sess_.is_active:
-                    await sess_.commit()
-
-            asyncio.get_event_loop().run_until_complete(commit_async(sess))
-        else:
-            if sess.is_active:
-                sess.commit()
-
-
-def do_rollback(sess: Session | AsyncSession | AsyncSessionTransaction):
-    if isinstance(sess, AsyncSessionTransaction):
-        if sess.is_active:
-            sess.rollback()
-    elif isinstance(sess, AsyncSession):
-
-        async def rollback_async(sess_: AsyncSession):
-            if sess_.is_active:
-                await sess_.rollback()
-
-        asyncio.get_event_loop().run_until_complete(rollback_async(sess))
-    else:
-        sess.rollback()
-
-
-def do_close(sess: Session | AsyncSession, origin_autoflush: bool, is_session_owner: bool) -> None:
-    """세션을 닫고, 현재 컨텍스트에서 세션을 제거합니다."""
-    if isinstance(sess, AsyncSession):
-
-        async def close_async(sess_: AsyncSession):
-            sess_.autoflush = origin_autoflush
-            if is_session_owner:
-                await sess_.close()
-
-        asyncio.get_event_loop().run_until_complete(close_async(sess))
-    else:
-        sess.autoflush = origin_autoflush
-        if is_session_owner:
-            sess.close()
-
-    remove_session_from_context()
 
 
 def get_new_session(

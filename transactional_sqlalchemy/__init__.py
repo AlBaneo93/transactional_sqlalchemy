@@ -1,4 +1,4 @@
-from transactional_sqlalchemy.config import SessionHandler, init_manager, scoped_session_context, transaction_context
+from transactional_sqlalchemy.config import SessionHandler, init_manager, transaction_context
 from transactional_sqlalchemy.decorator.transactional import transactional
 from transactional_sqlalchemy.domains import Pageable
 from transactional_sqlalchemy.enums import Propagation
@@ -13,7 +13,6 @@ __all__ = [
     "SessionHandler",
     "Propagation",
     "ISessionRepository",
-    "scoped_session_context",
     "Pageable",
     "BaseCRUDRepository",
     "BaseCRUDTransactionRepository",
