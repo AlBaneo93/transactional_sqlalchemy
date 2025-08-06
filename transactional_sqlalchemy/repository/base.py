@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar, get_args, get_origin
+from typing import Any, Generic, TypeVar, Union, get_args, get_origin
 
 from sqlalchemy import exists
 from sqlalchemy.engine.result import Result
@@ -24,7 +24,7 @@ MODEL_TYPE = TypeVar("MODEL_TYPE", bound=DeclarativeBase)
 
 # 복합키를 위한 타입 정의
 CompositeKeyType = dict[str, Any]
-PrimaryKeyType = Any | CompositeKeyType
+PrimaryKeyType = Union[Any, CompositeKeyType]
 
 
 @dataclass(frozen=True)
