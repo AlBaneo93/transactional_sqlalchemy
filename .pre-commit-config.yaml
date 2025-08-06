@@ -38,3 +38,16 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: tox
+        name: tox
+        # 'system'은 pre-commit을 설치한 환경의 tox를 사용하라는 의미
+        language: system
+        # 실행할 명령어
+        entry: tox
+        # tox는 변경된 파일 목록을 인자로 받지 않으므로 false로 설정
+        pass_filenames: false
+        # .py 파일이 변경될 때만 이 훅을 실행
+        files: \.py$

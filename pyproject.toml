@@ -8,6 +8,8 @@ requires-python = ">=3.9"
 dependencies = [
     "setuptools>=76.1.0",
     "sqlalchemy[asyncio]>=2.0.0",
+    "tox>=4.28.4",
+    "tox-uv>=1.26.2",
     "wheel>=0.45.1",
 ]
 readme = "README.md"
@@ -107,4 +109,34 @@ log_cli_format = "%(levelname)-8s %(asctime)s %(name)s::%(filename)s:%(funcName)
 [dependency-groups]
 dev = [
     "pre-commit>=4.2.0",
+]
+
+
+[tool.tox]
+env_list = [
+    "py39",
+    "py310",
+    "py311",
+    "py312",
+]
+
+
+[tool.tox.env_run_base]
+description = "Run test under {base_python}"
+commands = [["pytest"]]
+
+[tool.tox.testenv]
+deps = [
+    "pytest",
+    "transactional-sqlalchemy[async]",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-html",
+    "pytest-xdist",
+]
+commands = [
+    "pytest -n auto -e .",
+]
+toxdeps = [
+    "tox-uv"
 ]
