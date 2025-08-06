@@ -1,0 +1,102 @@
+# .github/workflows/publish-with-uv.yml
+
+name: Build and Publish with uv
+
+# 워크플로우 트리거 조건:
+# 1. 'stage' 브랜치로 push 될 때 (TestPyPI 배포용)
+# 2. 새로운 릴리즈가 생성될 때 (PyPI 배포용)
+on:
+  push:
+    branches:
+      - stage
+  release:
+    types: [ created ]
+
+jobs:
+  # 1. 빌드 작업
+  build:
+    # 'test' 작업이 있다면 needs: test 를 추가하세요.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 릴리즈 시 버전 업데이트를 위해 권한 필요
+
+    steps:
+      # 소스 코드 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # uv 설치 (Python도 함께 설치됨)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      # 릴리즈 생성 시, 태그 버전으로 pyproject.toml 업데이트
+      - name: Update version from release tag
+        # 'release' 이벤트이고, 태그가 'v'로 시작할 때만 실행
+        if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # 태그에서 'v' 접두사 제거 (예: v1.2.3 -> 1.2.3)
+          RELEASE_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Updating pyproject.toml version to $RELEASE_VERSION"
+
+          # sed 명령어로 pyproject.toml 파일의 version 필드 업데이트
+          sed -i "s/^version = .*/version = \"$RELEASE_VERSION\"/" pyproject.toml
+
+          echo "Updated version:"
+          grep "^version" pyproject.toml
+
+      # uv를 사용하여 의존성 동기화 및 빌드
+      - name: Sync dependencies and build package with uv
+        run: |
+          # pyproject.toml에 정의된 'dev' 추가 의존성을 설치합니다.
+          # 이 그룹에는 'build' 패키지가 포함되어 있어야 합니다.
+          uv sync --extra dev
+
+          # uv build 명령어로 패키지 빌드
+          uv build
+
+      # 빌드 결과물(artifact) 업로드
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # 2. TestPyPI 배포 작업 (변경 없음)
+  publish-to-testpypi:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/stage'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/transactional-sqlalchemy
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to TestPyPI 🚀
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          skip-existing: true
+
+  # 3. PyPI 배포 작업 (변경 없음)
+  publish-to-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/transactional-sqlalchemy
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI 🚀
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

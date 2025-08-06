@@ -368,3 +368,5 @@ $RECYCLE.BIN/
 
 /src/transactional_sqlalchemy.egg-info/
 /dist/
+
+.tox
