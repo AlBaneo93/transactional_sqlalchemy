@@ -55,7 +55,6 @@ class AutoTransactionalMixIn(ABC):
 
             # 이미 transactional 데코레이터가 적용되었는지 확인
             if hasattr(attr_value, "_transactional_decorated"):
-                print(f"✅ {cls.__name__}.{attr_name} - 이미 데코레이터 적용됨, 건너뜀")
                 continue
 
             # 제외할 메서드들 (필요에 따라 수정)
