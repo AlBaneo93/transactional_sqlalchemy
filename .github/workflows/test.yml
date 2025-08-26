@@ -39,12 +39,14 @@ jobs:
     - name: Run tests
       run: |
         uv venv
+        uv sync
         uv run pytest tests/ -v --tb=short
 
 
     - name: Run linting
       run: |
         uv venv
+        uv sync
         ruff check --fix .
         ruff format --check .
 
