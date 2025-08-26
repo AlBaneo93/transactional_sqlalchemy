@@ -67,8 +67,3 @@ jobs:
       run: |
         uv venv
         uv build
-
-    - name: Check built package
-      run: |
-        uv venv
-        uv publish
