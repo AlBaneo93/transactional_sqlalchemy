@@ -29,11 +29,11 @@ jobs:
 
       # 릴리즈 생성 시, 태그 버전으로 pyproject.toml 업데이트
       - name: Update version from release tag
-        # 'release' 이벤트이고, 태그가 'v'로 시작할 때만 실행
         if: github.event.workflow_run.event == 'release' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
         run: |
-          # 태그에서 'v' 접두사 제거 (예: v1.2.3 -> 1.2.3)
-          RELEASE_VERSION=${{ replace(github.event.workflow_run.head_branch, 'refs/tags/v', '') }}
+          # 'v' 접두사를 제거하고 버전 번호만 추출합니다.
+          RELEASE_VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | sed 's/refs\/tags\/v//')
+
           echo "Updating pyproject.toml version to $RELEASE_VERSION"
 
           # sed 명령어로 pyproject.toml 파일의 version 필드 업데이트
