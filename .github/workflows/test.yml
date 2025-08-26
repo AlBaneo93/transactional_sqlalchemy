@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, master, develop ]
 
+permissions:
+  id-token: write # ✨ 이 줄을 추가합니다.
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
