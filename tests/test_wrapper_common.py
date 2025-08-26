@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from transactional_sqlalchemy.wrapper.common import (
-    get_current_session_objects,
+    a_get_current_session_objects,
     get_new_session,
     reset_savepoint_objects,
 )
@@ -82,10 +82,11 @@ class TestGetCurrentSessionObjects:
     def test_get_current_session_objects(self):
         """현재 세션 객체들을 가져오는 테스트"""
         mock_session = Mock()
-        mock_session.new = [Mock(), Mock()]
-        mock_session.identity_map.values.return_value = [Mock(), Mock(), Mock()]
+        mock_session.session = Mock()
+        mock_session.session.new = [Mock(), Mock()]
+        mock_session.session.identity_map.values.return_value = [Mock(), Mock(), Mock()]
 
-        result = get_current_session_objects(mock_session)
+        result = a_get_current_session_objects(mock_session)
 
         assert isinstance(result, set)
         assert len(result) == 5  # new 2개 + identity_map 3개

@@ -18,6 +18,7 @@ from transactional_sqlalchemy.wrapper.common import (
     __check_is_commit,
     __get_safe_kwargs,
     get_current_session_objects,
+    has_pending_changes,
     reset_savepoint_objects,
 )
 
@@ -85,7 +86,11 @@ def _do_fn_with_tx(
 
 
 def __sync_transaction_wrapper(
-    func, propagation: Propagation, rollback_for: tuple[type[Exception]], no_rollback_for: tuple[type[Exception, ...]]
+    func,
+    propagation: Propagation,
+    read_only: bool,
+    rollback_for: tuple[type[Exception]],
+    no_rollback_for: tuple[type[Exception, ...]],
 ):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -100,9 +105,6 @@ def __sync_transaction_wrapper(
 
         kwargs["__rollback_for__"] = rollback_for
         kwargs["__no_rollback_for__"] = no_rollback_for
-
-        # if current_session is None:
-        #     current_session, scoped_ = handler.get_manager().get_new_session()
 
         if propagation == Propagation.REQUIRES:
             if current_session is not None:
@@ -144,26 +146,31 @@ def __sync_transaction_wrapper(
             if current_session is None:
                 raise ValueError("NESTED propagation requires an existing transaction")
 
-            current_objects: set = get_current_session_objects(current_session)
-
             # 사용중인 세션이 있다면 해당 세션을 사용
             save_point: SessionTransaction = current_session.begin_nested()
+            object_snapshots: set = get_current_session_objects(save_point)
 
             try:
                 kwargs, _, _ = __get_safe_kwargs(kwargs)
-
                 kwargs["session"] = current_session
                 result = func(*args, **kwargs)
 
-                current_session.flush()
+                if not read_only and has_pending_changes(current_session):
+                    # 변경사항이 있는 경우에만 flush
+                    current_session.flush()
+
                 return result
-            except Exception:
-                reset_savepoint_objects(current_session, current_objects)
+            except Exception as e:
                 # 오류 발생 시, save point만 롤백
-                if save_point.is_active:
+                if save_point.is_active and not __check_is_commit(e, rollback_for, no_rollback_for):
+                    reset_savepoint_objects(save_point.session, object_snapshots)
                     save_point.rollback()
                 raise
-        else:
-            raise ValueError(f"Unsupported propagation type: {propagation}")
+            finally:
+                if save_point.is_active:
+                    if read_only:
+                        save_point.rollback()
+                    else:
+                        save_point.commit()
 
     return wrapper

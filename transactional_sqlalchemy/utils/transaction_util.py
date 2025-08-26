@@ -12,22 +12,54 @@ from transactional_sqlalchemy.config import SessionHandler, transaction_context
 from transactional_sqlalchemy.utils.structure import Stack
 
 
-def allocate_session_in_args(bound_args: inspect.BoundArguments):
-    if "session" in bound_args.arguments:
-        sess = bound_args.arguments["session"]
-        if sess is None or (sess is not None and isinstance(sess, (Session, AsyncSession))):
-            # 스택에서 현재 세션 가져오기
-            stack: Stack[AsyncSession | Session] = transaction_context.get()
+def _is_session_type(annotation: Any) -> bool:
+    """주어진 타입이 Session 또는 AsyncSession인지 확인합니다."""
 
+    if isinstance(annotation, str):
+        return annotation == "Session" or annotation == "AsyncSession"
+    # 직접 타입 비교
+    return annotation is Session or annotation is AsyncSession
+
+
+def allocate_session_in_args(bound_args: inspect.BoundArguments):
+    """
+    함수 파라미터의 타입으로 Session을 할당합니다.
+    동일한 타입의 파라미터가 여러 개면 오류를 반환합니다.
+    """
+    session_param_names: list[str] = []
+
+    for name, param in bound_args.signature.parameters.items():
+        # 타입이 Session또는 AsyncSession 이고, 파라미터 종류가 KEYWORD_ONLY인지 확인
+        if _is_session_type(param.annotation) and param.kind == inspect.Parameter.KEYWORD_ONLY:
+            session_param_names.append(name)
+
+    if len(session_param_names) > 1:
+        raise ValueError(
+            "함수 파라미터에 'Session' 또는 'AsyncSession' 타입이 두 개 이상 존재합니다. "
+            f"중복된 파라미터: {session_param_names}"
+        )
+
+    if len(session_param_names) == 1:
+        session_param_name = session_param_names[0]
+        session_value = bound_args.arguments.get(session_param_name)
+
+        # session 파라미터가 None이거나 전달되지 않은 경우에만 처리
+        if session_value is None:
+            # 스택에서 현재 세션 가져오기 (이전 코드 로직 그대로 사용)
+            stack: Any = transaction_context.get()
+
+            current_session: Session | AsyncSession | None = None
             if stack.size() > 0:
-                # 스택에 세션이 있으면 현재 세션 사용
                 current_session = stack.peek()
-                bound_args.arguments["session"] = current_session
             else:
-                # 스택이 비어있으면 새로운 세션 생성
                 new_session, _ = SessionHandler().get_manager().get_new_session()
                 stack.push(new_session)
-                bound_args.arguments["session"] = new_session
+                current_session = new_session
+
+            if not current_session:
+                raise ValueError("현재 세션을 가져올 수 없습니다.")
+
+            bound_args.arguments[session_param_name] = current_session
 
 
 def with_transaction_context(func):

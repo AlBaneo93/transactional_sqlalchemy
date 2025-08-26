@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from sqlalchemy.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm.scoping import scoped_session
 
 from transactional_sqlalchemy.utils.transaction_util import (
     add_session_to_context,
@@ -355,61 +356,219 @@ class TestAllocateSessionInArgs:
 
     @patch("transactional_sqlalchemy.utils.transaction_util.transaction_context")
     @patch("transactional_sqlalchemy.utils.transaction_util.SessionHandler")
-    def test_allocate_session_new_session_empty_stack(self, mock_handler_class, mock_context):
-        """빈 스택에서 새 세션 할당 테스트"""
-        # Mock setup
+    def test_allocate_session_in_args_sync_session(self, mock_session_handler, mock_context):
+        """동기 Session 파라미터에 세션이 할당되는지 테스트"""
+        from inspect import signature
+
+        from sqlalchemy.orm import Session
+
+        # Mock 세션과 스택 설정
+        mock_session = Mock(spec=Session)
+        mock_stack = Mock()
+        mock_stack.size.return_value = 1
+        mock_stack.peek.return_value = mock_session
+        mock_context.get.return_value = mock_stack
+
+        # 테스트용 함수 시그니처 생성
+        def test_func(arg1: str, *, session: Session = None):
+            pass
+
+        sig = signature(test_func)
+
+        # BoundArguments 생성
+        bound_args = sig.bind("test", session=None)
+        bound_args.apply_defaults()
+
+        # 함수 실행
+        allocate_session_in_args(bound_args)
+
+        # 세션이 할당되었는지 확인
+        assert bound_args.arguments["session"] is mock_session
+
+    @patch("transactional_sqlalchemy.utils.transaction_util.transaction_context")
+    @patch("transactional_sqlalchemy.utils.transaction_util.SessionHandler")
+    def test_allocate_session_in_args_async_session(self, mock_session_handler, mock_context):
+        """비동기 AsyncSession 파라미터에 세션이 할당되는지 테스트"""
+        from inspect import signature
+
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        # Mock 세션과 스택 설정
+        mock_session = Mock(spec=AsyncSession)
+        mock_stack = Mock()
+        mock_stack.size.return_value = 1
+        mock_stack.peek.return_value = mock_session
+        mock_context.get.return_value = mock_stack
+
+        # 테스트용 함수 시그니처 생성
+        def test_func(arg1: str, *, session: AsyncSession = None):
+            pass
+
+        sig = signature(test_func)
+
+        # BoundArguments 생성
+        bound_args = sig.bind("test", session=None)
+        bound_args.apply_defaults()
+
+        # 함수 실행
+        allocate_session_in_args(bound_args)
+
+        # 세션이 할당되었는지 확인
+        assert bound_args.arguments["session"] is mock_session
+
+    @patch("transactional_sqlalchemy.utils.transaction_util.transaction_context")
+    @patch("transactional_sqlalchemy.utils.transaction_util.SessionHandler")
+    def test_allocate_session_in_args_existing_session_not_changed(self, mock_session_handler, mock_context):
+        """이미 값이 있는 파라미터는 변경되지 않는지 테스트"""
+        from inspect import signature
+
+        from sqlalchemy.orm import Session
+
+        # Mock 세션 설정
+        mock_existing_session = Mock(spec=Session)
+
+        # 테스트용 함수 시그니처 생성
+        def test_func(arg1: str, *, session: Session = None):
+            pass
+
+        sig = signature(test_func)
+
+        # BoundArguments 생성 (이미 값이 있는 경우)
+        bound_args = sig.bind("test", session=mock_existing_session)
+        bound_args.apply_defaults()
+
+        # 함수 실행
+        allocate_session_in_args(bound_args)
+
+        # 기존 세션이 유지되는지 확인
+        assert bound_args.arguments["session"] is mock_existing_session
+
+    def test_allocate_session_in_args_multiple_session_params_error(self):
+        """세션 파라미터가 2개 이상인 경우 ValueError 발생 테스트"""
+        from inspect import signature
+
+        # 테스트용 함수 시그니처 생성 (2개의 세션 파라미터)
+        def test_func(*, session1: AsyncSession = None, session2: AsyncSession = None):
+            pass
+
+        sig = signature(test_func)
+
+        # BoundArguments 생성
+        bound_args = sig.bind(session1=None, session2=None)
+        bound_args.apply_defaults()
+
+        # 함수 실행 시 ValueError 발생 확인
+        with pytest.raises(
+            ValueError, match="함수 파라미터에 'Session' 또는 'AsyncSession' 타입이 두 개 이상 존재합니다"
+        ):
+            allocate_session_in_args(bound_args)
+
+    @patch("transactional_sqlalchemy.utils.transaction_util.transaction_context")
+    @patch("transactional_sqlalchemy.utils.transaction_util.SessionHandler")
+    def test_allocate_session_in_args_no_session_in_stack_error(self, mock_session_handler, mock_context):
+        """스택에 세션이 없는 경우 ValueError 발생 테스트"""
+        from inspect import signature
+
+        from sqlalchemy.orm import Session
+
+        # 빈 스택 설정
         mock_stack = Mock()
         mock_stack.size.return_value = 0
         mock_context.get.return_value = mock_stack
 
-        mock_session = Mock()
+        # SessionHandler mock 설정
+        mock_scoped_session = Mock(spec=scoped_session)
+
         mock_manager = Mock()
-        mock_manager.get_new_session.return_value = (mock_session, Mock())
+        mock_handler_instance = Mock()
+        mock_handler_instance.get_manager.return_value = mock_manager
+        mock_manager.get_new_session.return_value = (None, mock_scoped_session)
 
-        mock_handler = Mock()
-        mock_handler.get_manager.return_value = mock_manager
-        mock_handler_class.return_value = mock_handler
+        mock_session_handler.return_value = mock_handler_instance
 
-        # BoundArguments mock
-        from inspect import BoundArguments
+        def test_func(arg1: str, *, session: Session = None):
+            pass
 
-        mock_bound_args = Mock(spec=BoundArguments)
-        mock_bound_args.arguments = {"session": None}
+        sig = signature(test_func)
 
-        allocate_session_in_args(mock_bound_args)
+        # BoundArguments 생성
+        bound_args = sig.bind("test", session=None)
+        bound_args.apply_defaults()
 
-        mock_stack.push.assert_called_once_with(mock_session)
-        assert mock_bound_args.arguments["session"] is mock_session
+        # 함수 실행 시 ValueError 발생 확인
+        with pytest.raises(ValueError, match="현재 세션을 가져올 수 없습니다"):
+            allocate_session_in_args(bound_args)
 
-    @patch("transactional_sqlalchemy.utils.transaction_util.transaction_context")
-    def test_allocate_session_existing_session_in_stack(self, mock_context):
-        """스택에 기존 세션이 있는 경우 테스트"""
-        mock_stack = Mock()
-        mock_stack.size.return_value = 1
-        mock_existing_session = Mock()
-        mock_stack.peek.return_value = mock_existing_session
-        mock_context.get.return_value = mock_stack
+    def test_allocate_session_in_args_no_session_params(self):
+        """세션 파라미터가 없는 경우 아무 일도 일어나지 않는지 테스트"""
+        from inspect import signature
 
-        from inspect import BoundArguments
+        # 세션 파라미터가 없는 함수
+        def test_func(arg1: str, arg2: int = 42):
+            pass
 
-        mock_bound_args = Mock(spec=BoundArguments)
-        mock_bound_args.arguments = {"session": None}
+        sig = signature(test_func)
 
-        allocate_session_in_args(mock_bound_args)
+        # BoundArguments 생성
+        bound_args = sig.bind("test")
+        bound_args.apply_defaults()
 
-        assert mock_bound_args.arguments["session"] is mock_existing_session
+        # 원본 arguments 저장
+        original_args = bound_args.arguments.copy()
 
-    def test_allocate_session_no_session_argument(self):
-        """session 인자가 없는 경우 테스트"""
-        from inspect import BoundArguments
+        # 함수 실행
+        allocate_session_in_args(bound_args)
 
-        mock_bound_args = Mock(spec=BoundArguments)
-        mock_bound_args.arguments = {"other_arg": "value"}
+        # arguments가 변경되지 않았는지 확인
+        assert bound_args.arguments == original_args
 
-        # 예외 없이 실행되어야 함
-        allocate_session_in_args(mock_bound_args)
+    def test_allocate_session_in_args_non_keyword_only_ignored(self):
+        """KEYWORD_ONLY가 아닌 파라미터는 무시되는지 테스트"""
+        from inspect import signature
 
-    # 복잡한 SessionHandler 초기화가 필요한 테스트는 통합 테스트에서 다룹니다.
+        from sqlalchemy.orm import Session
+
+        # POSITIONAL_OR_KEYWORD 타입의 세션 파라미터를 가진 함수
+        def test_func(session: Session = None, arg1: str = "test"):
+            pass
+
+        sig = signature(test_func)
+
+        # BoundArguments 생성
+        bound_args = sig.bind(None, "test")
+        bound_args.apply_defaults()
+
+        # 원본 arguments 저장
+        original_args = bound_args.arguments.copy()
+
+        # 함수 실행
+        allocate_session_in_args(bound_args)
+
+        # arguments가 변경되지 않았는지 확인 (POSITIONAL_OR_KEYWORD 파라미터는 무시됨)
+        assert bound_args.arguments == original_args
+
+    def test_allocate_session_in_args_non_session_type_ignored(self):
+        """Session/AsyncSession 타입이 아닌 파라미터는 무시되는지 테스트"""
+        from inspect import signature
+
+        # 세션 타입이 아닌 KEYWORD_ONLY 파라미터를 가진 함수
+        def test_func(*, config: dict = None, arg1: str = "test"):
+            pass
+
+        sig = signature(test_func)
+
+        # BoundArguments 생성
+        bound_args = sig.bind(config=None, arg1="test")
+        bound_args.apply_defaults()
+
+        # 원본 arguments 저장
+        original_args = bound_args.arguments.copy()
+
+        # 함수 실행
+        allocate_session_in_args(bound_args)
+
+        # arguments가 변경되지 않았는지 확인
+        assert bound_args.arguments == original_args
 
 
 class TestWithTransactionContext:

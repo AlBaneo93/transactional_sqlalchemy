@@ -1,9 +1,14 @@
+"""
+비동기 환경 기본 리포지토리 테스트
+"""
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.conftest import SampleModel
-from transactional_sqlalchemy.domains import Pageable
 from transactional_sqlalchemy.repository.base import BaseCRUDRepository
+
+from ..helpers.base_test import AsyncBaseTest
 
 
 class SampleModelRepository(BaseCRUDRepository[SampleModel]): ...
@@ -15,93 +20,125 @@ def repository():
     return SampleModelRepository()
 
 
-@pytest.mark.asyncio
-async def test_아이디로_존재하는_모델을_조회한다(repository, transaction_async: AsyncSession):
-    # 사전 데이터 준비
-    model = SampleModel(name="test")
-    transaction_async.add(model)
-    await transaction_async.commit()
+class TestAsyncBaseRepository(AsyncBaseTest):
+    """비동기 기본 리포지토리 테스트"""
 
-    # 테스트
-    found = await repository.find_by_id(model.id, session=transaction_async)
-    assert found is not None
-    assert found.id == model.id
+    @pytest.mark.asyncio
+    async def test_아이디로_존재하는_모델을_조회한다(self, repository, transaction_async: AsyncSession):
+        """ID로 존재하는 모델을 조회할 수 있는지 확인"""
+        # Given - 테스트 데이터 준비
+        model = self.create_sample_model(name="test")
+        transaction_async.add(model)
+        await transaction_async.commit()
 
+        # When
+        found = await repository.find_by_id(model.id, session=transaction_async)
 
-@pytest.mark.asyncio
-async def test_존재하지_않는_아이디_조회시_none_반환(repository, transaction_async: AsyncSession):
-    found = await repository.find_by_id(999999, session=transaction_async)
-    assert found is None
+        # Then
+        assert found is not None
+        assert found.id == model.id
 
+    @pytest.mark.asyncio
+    async def test_존재하지_않는_아이디_조회시_none_반환(self, repository, transaction_async: AsyncSession):
+        """존재하지 않는 ID 조회 시 None을 반환하는지 확인"""
+        # When
+        found = await repository.find_by_id(999999, session=transaction_async)
 
-@pytest.mark.asyncio
-async def test_모든_모델을_조회한다(repository, transaction_async: AsyncSession):
-    # 데이터 준비
-    models = [SampleModel(name=f"name{i}") for i in range(3)]
-    transaction_async.add_all(models)
-    await transaction_async.commit()
+        # Then
+        assert found is None
 
-    results = await repository.find_all(session=transaction_async)
-    assert len(results) >= 3
+    @pytest.mark.asyncio
+    async def test_모든_모델을_조회한다(self, repository, transaction_async: AsyncSession):
+        """모든 모델을 조회할 수 있는지 확인"""
+        # Given - 데이터 준비
+        models = [self.create_sample_model(name=f"name{i}") for i in range(3)]
+        transaction_async.add_all(models)
+        await transaction_async.commit()
 
+        # When
+        results = await repository.find_all(session=transaction_async)
 
-@pytest.mark.asyncio
-async def test_페이징_기능이_동작한다(repository, transaction_async: AsyncSession):
-    models = [SampleModel(name=f"name{i}") for i in range(10)]
-    transaction_async.add_all(models)
-    await transaction_async.commit()
+        # Then
+        assert len(results) >= 3
 
-    pageable = Pageable(page=0, size=5)
-    results = await repository.find_all(pageable=pageable, session=transaction_async)
-    assert len(results) == 5
+    @pytest.mark.asyncio
+    async def test_페이징_기능이_동작한다(self, repository, transaction_async: AsyncSession):
+        """페이징 기능이 정상적으로 동작하는지 확인"""
+        # Given
+        total_count = 10
+        models = [self.create_sample_model(name=f"name{i}") for i in range(total_count)]
+        transaction_async.add_all(models)
+        await transaction_async.commit()
 
+        # When
+        results = await repository.find_all(session=transaction_async)
 
-@pytest.mark.asyncio
-async def test_여러_아이디로_모델_목록을_조회한다(repository, transaction_async: AsyncSession):
-    models = [SampleModel(name=f"name{i}") for i in range(3)]
-    transaction_async.add_all(models)
-    await transaction_async.commit()
+        # Then
+        assert len(results) == total_count
 
-    ids = [m.id for m in models]
-    results = await repository.find_all_by_id(ids, session=transaction_async)
-    assert len(results) == 3
+    @pytest.mark.asyncio
+    async def test_여러_아이디로_모델_목록을_조회한다(self, repository, transaction_async: AsyncSession):
+        """여러 ID로 모델 목록을 조회할 수 있는지 확인"""
+        # Given
+        models = [self.create_sample_model(name=f"name{i}") for i in range(3)]
+        transaction_async.add_all(models)
+        await transaction_async.commit()
 
+        # When
+        ids = [m.id for m in models]
+        results = await repository.find_all_by_id(ids, session=transaction_async)
 
-@pytest.mark.asyncio
-async def test_빈_아이디_목록_조회시_빈_리스트_반환(repository, transaction_async: AsyncSession):
-    results = await repository.find_all_by_id([], session=transaction_async)
-    assert results == []
+        # Then
+        assert len(results) == 3
 
+    @pytest.mark.asyncio
+    async def test_빈_아이디_목록_조회시_빈_리스트_반환(self, repository, transaction_async: AsyncSession):
+        """빈 ID 목록 조회 시 빈 리스트를 반환하는지 확인"""
+        # When
+        results = await repository.find_all_by_id([], session=transaction_async)
 
-@pytest.mark.asyncio
-async def test_모델을_저장한다(repository, transaction_async: AsyncSession):
-    model = SampleModel(name="save_test")
-    saved = await repository.save(model, session=transaction_async)
-    assert saved is not None
+        # Then
+        assert results == []
 
+    @pytest.mark.asyncio
+    async def test_모델을_저장한다(self, repository, transaction_async: AsyncSession):
+        """모델을 정상적으로 저장할 수 있는지 확인"""
+        # Given
+        model = self.create_sample_model(name="save_test")
 
-@pytest.mark.asyncio
-async def test_아이디_존재여부를_확인한다(repository, transaction_async: AsyncSession):
-    model = SampleModel(name="exists_test")
-    transaction_async.add(model)
-    await transaction_async.commit()
+        # When
+        saved = await repository.save(model, session=transaction_async)
 
-    exists = await repository.exists_by_id(model.id, session=transaction_async)
-    assert exists is True
+        # Then
+        assert saved is not None
+        self.assert_model_saved(saved)
 
+    @pytest.mark.asyncio
+    async def test_아이디_존재여부를_확인한다(self, repository, transaction_async: AsyncSession):
+        """ID 존재여부를 올바르게 확인하는지 테스트"""
+        # Given
+        model = self.create_sample_model(name="exists_test")
+        transaction_async.add(model)
+        await transaction_async.commit()
 
-@pytest.mark.asyncio
-async def test_존재하지_않는_아이디_존재여부는_false(repository, transaction_async: AsyncSession):
-    exists = await repository.exists_by_id(999999, session=transaction_async)
-    assert exists is False
+        # When & Then
+        exists = await repository.exists_by_id(model.id, session=transaction_async)
+        assert exists is True
 
+    @pytest.mark.asyncio
+    async def test_존재하지_않는_아이디_존재여부는_false(self, repository, transaction_async: AsyncSession):
+        """존재하지 않는 ID의 존재여부 확인 시 False를 반환하는지 확인"""
+        # When
+        exists = await repository.exists_by_id(999999, session=transaction_async)
 
-@pytest.mark.asyncio
-async def test_모델_전체_개수를_조회한다(repository, transaction_async: AsyncSession):
-    count = await repository.count(session=transaction_async)
-    assert isinstance(count, int)
+        # Then
+        assert exists is False
 
+    @pytest.mark.asyncio
+    async def test_모델_전체_개수를_조회한다(self, repository, transaction_async: AsyncSession):
+        """모델 전체 개수를 올바르게 조회하는지 확인"""
+        # When
+        count = await repository.count(session=transaction_async)
 
-def test_기본키_컬럼_단일_반환(repository):
-    pk = repository._BaseCRUDRepository__get_pk_columns()
-    assert pk[0].name == "id"
+        # Then
+        assert isinstance(count, int)

@@ -4,10 +4,10 @@ from collections.abc import Generator
 from typing import Any
 
 from sqlalchemy.ext.asyncio.scoping import async_scoped_session
-from sqlalchemy.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio.session import AsyncSession, AsyncSessionTransaction
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.scoping import scoped_session
-from sqlalchemy.orm.session import Session
+from sqlalchemy.orm.session import Session, SessionTransaction
 
 from transactional_sqlalchemy.config import ScopeAndSessionManager
 
@@ -48,8 +48,16 @@ def set_read_only(sess: Session | AsyncSession) -> Generator[None, Any, None]:
         sess.autoflush = True
 
 
-def get_current_session_objects(session) -> set:
-    return set(list(session.new) + list(session.identity_map.values()))
+def a_get_current_session_objects(session: AsyncSession | AsyncSessionTransaction) -> set:
+    sess_ = session if isinstance(session, AsyncSession) else session.session
+
+    return set(list(sess_.new) + list(sess_.identity_map.values()))
+
+
+def get_current_session_objects(session: Session | SessionTransaction) -> set:
+    sess_ = session if isinstance(session, Session) else session.session
+
+    return set(list(sess_.new) + list(sess_.identity_map.values()))
 
 
 def reset_savepoint_objects(session: Session | AsyncSession, before_objects: set):
@@ -72,3 +80,8 @@ def reset_savepoint_objects(session: Session | AsyncSession, before_objects: set
 
         # 2. 세션에서 제거
         session.expunge(obj)
+
+
+def has_pending_changes(session: Session | AsyncSession) -> bool:
+    """세션에 커밋/플러시할 변경사항이 있는지 확인합니다."""
+    return bool(session.dirty or session.new or session.deleted)

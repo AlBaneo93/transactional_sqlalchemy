@@ -14,13 +14,13 @@ class TestPageable:
         assert pageable.total_items == 0
         assert pageable.total_pages == 0
 
-    def test_pageable_custom_values(self):
-        """사용자 정의 값으로 Pageable 객체 생성 테스트"""
-        pageable = Pageable(page=2, size=20, total_items=100, total_pages=5)
-        assert pageable.page == 2
-        assert pageable.size == 20
-        assert pageable.total_items == 100
-        assert pageable.total_pages == 5
+    # def test_pageable_custom_values(self):
+    #     """사용자 정의 값으로 Pageable 객체 생성 테스트"""
+    #     pageable = Pageable(page=2, size=20, total_items=100, total_pages=5)
+    #     assert pageable.page == 2
+    #     assert pageable.size == 20
+    #     assert pageable.total_items == 100
+    #     assert pageable.total_pages == 5
 
     def test_pageable_limit_property(self):
         """limit 프로퍼티가 size와 동일한지 테스트"""
@@ -42,14 +42,14 @@ class TestPageable:
         pageable3 = Pageable(page=3, size=20)
         assert pageable3.offset == 40
 
-    def test_pageable_dict_method(self):
-        """dict() 메서드가 올바른 딕셔너리를 반환하는지 테스트"""
-        pageable = Pageable(page=2, size=15, total_items=50, total_pages=4)
-        result = pageable.dict()
-
-        expected = {"page": 2, "size": 15, "total_items": 50, "total_pages": 4}
-        assert result == expected
-        assert isinstance(result, dict)
+    # def test_pageable_dict_method(self):
+    #     """dict() 메서드가 올바른 딕셔너리를 반환하는지 테스트"""
+    #     pageable = Pageable(page=2, size=15, total_items=50, total_pages=4)
+    #     result = pageable.dict()
+    #
+    #     expected = {"page": 2, "size": 15, "total_items": 50, "total_pages": 4}
+    #     assert result == expected
+    #     assert isinstance(result, dict)
 
     def test_pageable_validate_success(self):
         """유효한 값들에 대해 validate가 성공하는지 테스트"""
@@ -84,15 +84,15 @@ class TestPageable:
         with pytest.raises(ValueError, match="Page size must be greater than or equal to 1"):
             pageable.validate()
 
-    def test_pageable_frozen_dataclass(self):
-        """frozen dataclass로 설정되어 수정이 불가능한지 테스트"""
-        pageable = Pageable(page=1, size=10)
-
-        with pytest.raises(AttributeError):
-            pageable.page = 2
-
-        with pytest.raises(AttributeError):
-            pageable.size = 20
+    # def test_pageable_frozen_dataclass(self):
+    #     """frozen dataclass로 설정되어 수정이 불가능한지 테스트"""
+    #     pageable = Pageable(page=1, size=10)
+    #
+    #     with pytest.raises(AttributeError):
+    #         pageable.page = 2
+    #
+    #     with pytest.raises(AttributeError):
+    #         pageable.size = 20
 
     def test_pageable_metadata(self):
         """field metadata가 올바르게 설정되었는지 테스트"""

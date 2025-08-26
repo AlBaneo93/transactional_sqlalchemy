@@ -23,6 +23,15 @@ def verify_config(**kwargs):
 transaction_context: ContextVar[Stack[Session | AsyncSession]] = ContextVar("transaction_context", default=Stack())
 
 
+HAS_ASYNC_SUPPORT = False
+try:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    HAS_ASYNC_SUPPORT = True
+except ImportError:
+    pass
+
+
 class ScopeAndSessionManager:
     __instance = None
 

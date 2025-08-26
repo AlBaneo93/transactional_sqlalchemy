@@ -17,7 +17,8 @@ from transactional_sqlalchemy.utils.transaction_util import (
 from transactional_sqlalchemy.wrapper.common import (
     __check_is_commit,
     __get_safe_kwargs,
-    get_current_session_objects,
+    a_get_current_session_objects,
+    has_pending_changes,
     reset_savepoint_objects,
 )
 
@@ -33,7 +34,7 @@ async def _a_do_fn_with_tx(
 ):
     add_session_to_context(sess_)
 
-    object_snapshots: set = get_current_session_objects(sess_)
+    object_snapshots: set = a_get_current_session_objects(sess_)
 
     kwargs, no_rollback_for, rollback_for = __get_safe_kwargs(kwargs)
 
@@ -77,7 +78,11 @@ async def _a_do_fn_with_tx(
 
 
 def __async_transaction_wrapper(
-    func, propagation: Propagation, rollback_for: tuple[type[Exception]], no_rollback_for: tuple[type[Exception, ...]]
+    func,
+    propagation: Propagation,
+    read_only: bool,
+    rollback_for: tuple[type[Exception]],
+    no_rollback_for: tuple[type[Exception, ...]],
 ):
     @functools.wraps(func)
     async def async_wrapper(*args, **kwargs):
@@ -101,6 +106,7 @@ def __async_transaction_wrapper(
                     current_session,
                     is_session_owner=False,  # 부모가 세션 관리
                     auto_flush=True,
+                    read_only=read_only,
                     *args,
                     **kwargs,
                 )
@@ -115,6 +121,7 @@ def __async_transaction_wrapper(
                         new_session,
                         is_session_owner=True,  # 현재 함수가 세션 관리
                         auto_flush=False,
+                        read_only=read_only,
                         *args,
                         **kwargs,
                     )
@@ -128,7 +135,7 @@ def __async_transaction_wrapper(
             new_session, scoped_ = handler.get_manager().get_new_async_session(force=True)
             try:
                 return await _a_do_fn_with_tx(
-                    func, new_session, is_session_owner=True, auto_flush=False, *args, **kwargs
+                    func, new_session, is_session_owner=True, auto_flush=False, read_only=read_only, *args, **kwargs
                 )
             finally:
                 if scoped_ is not None:
@@ -138,32 +145,33 @@ def __async_transaction_wrapper(
             if current_session is None:
                 raise ValueError("NESTED propagation requires an existing transaction")
 
-            current_objects: set = get_current_session_objects(current_session)
-
             # 중첩 트랜잭션 (savepoint) 생성
             save_point: AsyncSessionTransaction = await current_session.begin_nested()
-
-            # 세션을 컨텍스트에 추가 (같은 세션이지만 savepoint로 격리)
-            # add_session_to_context(current_session)
+            object_snapshots: set = a_get_current_session_objects(save_point)
 
             try:
                 kwargs, _, _ = __get_safe_kwargs(kwargs)
                 kwargs["session"] = current_session
                 result: Any = await func(*args, **kwargs)
 
-                # savepoint에서 수행한 작업 반영
-                await current_session.flush()
+                if not read_only and has_pending_changes(current_session):
+                    await current_session.flush()  # 중첩 트랜잭션에서 변경 사항을 즉시 반영
+
                 return result
 
-            except Exception:
-                # 오류 발생 시 savepoint만 롤백
-                reset_savepoint_objects(current_session, current_objects)
-                if save_point.is_active:
+            except Exception as e:
+                if save_point.is_active and not __check_is_commit(e, rollback_for, no_rollback_for):
+                    reset_savepoint_objects(save_point.session, object_snapshots)
                     await save_point.rollback()
 
                 raise
-
-        else:
-            raise ValueError(f"Unsupported propagation type: {propagation}")
+            finally:
+                # 중첩 트랜잭션 종료
+                if save_point.is_active:
+                    if read_only:
+                        await save_point.rollback()
+                    else:
+                        # ReadOnly 트랜잭션이 아니면서, 성공 시 commit (RELEASE SAVEPOINT)
+                        await save_point.commit()
 
     return async_wrapper

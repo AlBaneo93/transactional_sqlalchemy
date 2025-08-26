@@ -72,11 +72,10 @@ extend-include = [".venv", "build", "dist", "migrations"]
 
 [tool.ruff.lint]
 fixable = ["ALL"]
-extend-select = ["Q", "RUF100", "C90", "UP", "I", "E", "F"]
+extend-select = ["Q", "RUF100", "UP", "I", "E", "F"]
 isort = { combine-as-imports = true, known-first-party = [
     "transactional_sqlalchemy",
 ], split-on-trailing-comma = true }
-mccabe = { max-complexity = 12 }
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -96,9 +95,9 @@ publish-url = "https://test.pypi.org/legacy/"
 explicit = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "."]
 addopts = "-ra -q --cov=transactional_sqlalchemy --cov-report=term-missing"
-#asyncio_default_fixture_loop_scope = "function"
+asyncio_default_fixture_loop_scope = "function"
 asyncio_mode = "auto"
 
 log_cli = true
@@ -140,3 +139,7 @@ commands = [
 toxdeps = [
     "tox-uv"
 ]
+
+
+[tool.tox.testenv.set_env]
+PYTHONPATH = "{tox_root}"

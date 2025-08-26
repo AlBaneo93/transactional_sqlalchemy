@@ -14,20 +14,21 @@ def transactional(
     _func: AsyncCallable | Callable | None = None,
     *,
     propagation: Propagation = Propagation.REQUIRES,
+    read_only: bool = False,
     rollback_for: tuple[type[Exception]] = (Exception,),
     no_rollback_for: tuple[type[Exception, ...]] = (),
 ):
     def decorator(func: AsyncCallable | Callable):
         if iscoroutinefunction(unwrap(func)):
             # transactional decorator가 async function에 사용된 경우
-            async_wrapper = __async_transaction_wrapper(func, propagation, rollback_for, no_rollback_for)
+            async_wrapper = __async_transaction_wrapper(func, propagation, read_only, rollback_for, no_rollback_for)
 
             setattr(async_wrapper, "_transactional_propagation", propagation)
             setattr(async_wrapper, "_transactional_decorated", True)
             return async_wrapper
         else:
             # transactional decorator가 sync function에 사용된 경우
-            wrapper = __sync_transaction_wrapper(func, propagation, rollback_for, no_rollback_for)
+            wrapper = __sync_transaction_wrapper(func, propagation, read_only, rollback_for, no_rollback_for)
 
             setattr(wrapper, "_transactional_propagation", propagation)
             setattr(wrapper, "_transactional_decorated", True)
