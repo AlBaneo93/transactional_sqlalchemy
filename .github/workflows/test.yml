@@ -2,9 +2,9 @@ name: CI Tests
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ master, stage, dev ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ master, stage, dev ]
 
 permissions:
   id-token: write # ✨ 이 줄을 추가합니다.
@@ -47,8 +47,8 @@ jobs:
       run: |
         uv venv
         uv sync
-        ruff check --fix .
-        ruff format --check .
+        uv run ruff check --fix .
+        uv run ruff format --check .
 
   build-test:
     runs-on: ubuntu-latest
