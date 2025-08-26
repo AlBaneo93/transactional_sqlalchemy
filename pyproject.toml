@@ -92,6 +92,7 @@ dev-dependencies = [
     "pre-commit",
     "sqlalchemy[asyncio]>=2.0.0",
     "tox",
+    "ruff>=0.12.7",
 ]
 
 [[tool.uv.index]]
