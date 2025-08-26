@@ -4,7 +4,7 @@ version = "0.1.10"
 description = "transactional management using sqlalchemy"
 authors = [{ name = "alban", email = 'decade_vesper.8i@icloud.com' }]
 license-files = ["LICENSE"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "setuptools>=76.1.0",
     "sqlalchemy>=2.0.0",
@@ -17,7 +17,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -123,7 +122,6 @@ dev = [
 
 [tool.tox]
 env_list = [
-    "py39",
     "py310",
     "py311",
     "py312",
