@@ -1,15 +1,13 @@
 [project]
 name = "transactional-sqlalchemy"
-version = "0.1.7"
+version = "0.1.10"
 description = "transactional management using sqlalchemy"
 authors = [{ name = "alban", email = 'decade_vesper.8i@icloud.com' }]
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 dependencies = [
     "setuptools>=76.1.0",
-    "sqlalchemy[asyncio]>=2.0.0",
-    "tox>=4.28.4",
-    "tox-uv>=1.26.2",
+    "sqlalchemy>=2.0.0",
     "wheel>=0.45.1",
 ]
 readme = "README.md"
@@ -32,10 +30,9 @@ keywords = ["sqlalchemy", "transaction", "async", "database", "orm"]
 [project.optional-dependencies]
 async = ["sqlalchemy[asyncio]>=2.0.0"]
 dev = [
-    "aiosqlite>=0.21.0",
     "pre-commit>=4.2.0",
-]
-test = [
+    "sqlalchemy[asyncio]>=2.0.0",
+    "pytest",
     "pytest[asyncio]>=8.3.5",
     "pytest-asyncio>=0.25.3",
     "pytest-cov>=6.2.1",
@@ -46,8 +43,6 @@ test = [
     "pytest-xdist>=3.8.0",
     "pytest-cov>=6.2.1",
     "pytest-html>=4.1.1",
-]
-lint = [
     "ruff>=0.1.0",
 ]
 
@@ -88,6 +83,18 @@ skip-magic-trailing-comma = false
 docstring-code-format = true
 
 
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-html",
+    "pytest-xdist",
+    "pre-commit",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "tox",
+]
+
 [[tool.uv.index]]
 name = "testpypi"
 url = "https://test.pypi.org/simple/"
@@ -107,7 +114,9 @@ log_cli_format = "%(levelname)-8s %(asctime)s %(name)s::%(filename)s:%(funcName)
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.21.0",
     "pre-commit>=4.2.0",
+    "pytest-asyncio>=1.0.0",
 ]
 
 
@@ -119,27 +128,13 @@ env_list = [
     "py312",
 ]
 
-
-[tool.tox.env_run_base]
-description = "Run test under {base_python}"
-commands = [["pytest"]]
-
 [tool.tox.testenv]
+allowlist_externals = [
+    "pytest"
+]
 deps = [
-    "pytest",
-    "transactional-sqlalchemy[async]",
-    "pytest-asyncio",
-    "pytest-cov",
-    "pytest-html",
-    "pytest-xdist",
+    ".[dev]",
 ]
 commands = [
     "pytest -n auto -e .",
 ]
-toxdeps = [
-    "tox-uv"
-]
-
-
-[tool.tox.testenv.set_env]
-PYTHONPATH = "{tox_root}"

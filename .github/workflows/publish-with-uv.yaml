@@ -2,21 +2,17 @@
 
 name: Build and Publish with uv
 
-# 워크플로우 트리거 조건:
-# 1. 'stage' 브랜치로 push 될 때 (TestPyPI 배포용)
-# 2. 새로운 릴리즈가 생성될 때 (PyPI 배포용)
 on:
-  push:
-    branches:
-      - stage
-  release:
-    types: [ created ]
+  workflow_run:
+    workflows: ["CI Tests"]
+    types:
+      - completed
 
 jobs:
   # 1. 빌드 작업
   build:
-    # 'test' 작업이 있다면 needs: test 를 추가하세요.
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     permissions:
       contents: write # 릴리즈 시 버전 업데이트를 위해 권한 필요
 
@@ -24,6 +20,10 @@ jobs:
       # 소스 코드 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # workflow_run 이벤트는 기본적으로 detached HEAD 상태로 체크아웃하므로,
+          # 올바른 브랜치(또는 태그)를 명시적으로 지정해야 합니다.
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       # uv 설치 (Python도 함께 설치됨)
       - name: Install uv
@@ -32,10 +32,10 @@ jobs:
       # 릴리즈 생성 시, 태그 버전으로 pyproject.toml 업데이트
       - name: Update version from release tag
         # 'release' 이벤트이고, 태그가 'v'로 시작할 때만 실행
-        if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+        if: github.event.workflow_run.event == 'release' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
         run: |
           # 태그에서 'v' 접두사 제거 (예: v1.2.3 -> 1.2.3)
-          RELEASE_VERSION=${GITHUB_REF#refs/tags/v}
+          RELEASE_VERSION=${{ github.event.workflow_run.head_branch #refs/tags/v }}
           echo "Updating pyproject.toml version to $RELEASE_VERSION"
 
           # sed 명령어로 pyproject.toml 파일의 version 필드 업데이트
@@ -61,11 +61,12 @@ jobs:
           name: dist
           path: dist/
 
-  # 2. TestPyPI 배포 작업 (변경 없음)
+  # 2. TestPyPI 배포 작업
   publish-to-testpypi:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/stage'
+    # 'stage' 브랜치로 push 이벤트에 의해 트리거된 'CI Tests' 워크플로우가 성공했을 때 실행
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'stage'
     environment:
       name: testpypi
       url: https://test.pypi.org/p/transactional-sqlalchemy
@@ -82,11 +83,12 @@ jobs:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           skip-existing: true
 
-  # 3. PyPI 배포 작업 (변경 없음)
+  # 3. PyPI 배포 작업
   publish-to-pypi:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+    # 'release' 이벤트에 의해 트리거된 'CI Tests' 워크플로우가 성공했을 때 실행
+    if: github.event.workflow_run.event == 'release'
     environment:
       name: pypi
       url: https://pypi.org/p/transactional-sqlalchemy

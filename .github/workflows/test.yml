@@ -30,17 +30,19 @@ jobs:
     - name: Install dependencies
       run: |
         uv venv
-        uv pip install -e ".[dev,test,lint]"
+        uv lock --extras dev,test,lint
+        uv sync
 
     - name: Run tests
       run: |
-        source .venv/bin/activate
-        pytest tests/ -v --tb=short
+        uv venv
+        uv run pytest tests/ -v --tb=short
+
 
     - name: Run linting
       run: |
         source .venv/bin/activate
-        ruff check --output-format=github .
+        ruff check --fix .
         ruff format --check .
 
   build-test:
@@ -58,17 +60,12 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Install build dependencies
-      run: |
-        uv venv
-        uv pip install build twine
-
     - name: Build package
       run: |
-        source .venv/bin/activate
-        python -m build
+        uv venv
+        uv build
 
     - name: Check built package
       run: |
         source .venv/bin/activate
-        python -m twine check dist/*
+        uv publish
