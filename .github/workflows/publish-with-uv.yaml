@@ -5,12 +5,17 @@ on:
     workflows: ["CI Tests"]
     types:
       - completed
+  release:
+    types: [published]
 
 jobs:
   # 1. 빌드 작업
   build:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    # workflow_run 이벤트와 release 이벤트 모두 처리
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'release')
     permissions:
       contents: write # 릴리즈 시 버전 업데이트를 위해 권한 필요
 
@@ -19,9 +24,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # workflow_run 이벤트는 기본적으로 detached HEAD 상태로 체크아웃하므로,
-          # 올바른 브랜치(또는 태그)를 명시적으로 지정해야 합니다.
-          ref: ${{ github.event.workflow_run.head_sha }}
+          # 릴리즈 이벤트인 경우 태그를 체크아웃
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.workflow_run.head_sha }}
 
       # uv 설치 (Python도 함께 설치됨)
       - name: Install uv
@@ -46,9 +50,7 @@ jobs:
       - name: Sync dependencies and build package with uv
         run: |
           # pyproject.toml에 정의된 'dev' 추가 의존성을 설치합니다.
-          # 이 그룹에는 'build' 패키지가 포함되어 있어야 합니다.
           uv sync
-
           # uv build 명령어로 패키지 빌드
           uv build
 
@@ -64,7 +66,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # 'stage' 브랜치로 push 이벤트에 의해 트리거된 'CI Tests' 워크플로우가 성공했을 때 실행
-    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'stage'
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'stage'
     environment:
       name: testpypi
       url: https://test.pypi.org/p/transactional-sqlalchemy
@@ -86,7 +91,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # 'release' 이벤트에 의해 트리거된 'CI Tests' 워크플로우가 성공했을 때 실행
-    if: github.event.workflow_run.event == 'release'
+    if: github.event_name == 'release'
     environment:
       name: pypi
       url: https://pypi.org/p/transactional-sqlalchemy
