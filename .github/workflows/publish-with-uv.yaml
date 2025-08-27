@@ -62,41 +62,56 @@ jobs:
     if: |
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'stage'
+    # 디버깅을 위한 조건 로깅
+    steps:
+      - name: Debug workflow context
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Workflow run event: ${{ github.event.workflow_run.event }}"
+          echo "Head branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Head SHA: ${{ github.event.workflow_run.head_sha }}"
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
     environment:
       name: testpypi
       url: https://test.pypi.org/p/transactional-sqlalchemy
-    permissions:
-      id-token: write
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Publish to TestPyPI 🚀
-        run: |
-          uv publish --repository https://test.pypi.org/legacy/ dist/*
+#    steps:
+#      - name: Download build artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: dist
+#          path: dist/
+#      - name: Publish to TestPyPI 🚀
+#        uses: pypa/gh-action-pypi-publish@release/v1
+#        with:
+#          repository-url: https://test.pypi.org/legacy/
+#          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+#          skip-existing: true
 
   # 3. PyPI 배포 (릴리즈 태그용)
   publish-to-pypi:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
+    # 디버깅을 위한 조건 로깅
+    steps:
+      - name: Debug workflow context
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Workflow run event: ${{ github.event.workflow_run.event }}"
+          echo "Head branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Head SHA: ${{ github.event.workflow_run.head_sha }}"
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Is tag: ${{ startsWith(github.event.workflow_run.head_branch, 'refs/tags/v') }}"
     environment:
       name: pypi
       url: https://pypi.org/p/transactional-sqlalchemy
-    permissions:
-      id-token: write
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Publish to PyPI 🚀
-        run: |
-          uv publish dist/*
+#    steps:
+#      - name: Download build artifacts
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: dist
+#          path: dist/
+#      - name: Publish to PyPI 🚀
+#        uses: pypa/gh-action-pypi-publish@release/v1
+#        with:
+#          password: ${{ secrets.PYPI_API_TOKEN }}
