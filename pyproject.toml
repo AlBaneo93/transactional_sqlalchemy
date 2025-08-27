@@ -5,11 +5,7 @@ description = "transactional management using sqlalchemy"
 authors = [{ name = "alban", email = 'decade_vesper.8i@icloud.com' }]
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-dependencies = [
-    "setuptools>=76.1.0",
-    "sqlalchemy>=2.0.0",
-    "wheel>=0.45.1",
-]
+dependencies = ["setuptools>=76.1.0", "sqlalchemy>=2.0.0", "wheel>=0.45.1"]
 readme = "README.md"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -122,19 +118,9 @@ dev = [
 
 
 [tool.tox]
-env_list = [
-    "py310",
-    "py311",
-    "py312",
-]
+env_list = ["py310", "py311", "py312"]
 
 [tool.tox.testenv]
-allowlist_externals = [
-    "pytest"
-]
-deps = [
-    ".[dev]",
-]
-commands = [
-    "pytest -n auto -e .",
-]
+allowlist_externals = ["pytest"]
+deps = [".[dev]"]
+commands = ["pytest -n auto -e ."]

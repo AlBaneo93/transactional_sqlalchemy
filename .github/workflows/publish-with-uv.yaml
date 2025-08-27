@@ -5,40 +5,36 @@ on:
     workflows: ["CI Tests"]
     types:
       - completed
-  release:
-    types: [published]
 
 jobs:
   # 1. 빌드 작업
   build:
     runs-on: ubuntu-latest
-    # workflow_run 이벤트와 release 이벤트 모두 처리
-    if: |
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-      (github.event_name == 'release')
+    if: github.event.workflow_run.conclusion == 'success'
     permissions:
-      contents: write # 릴리즈 시 버전 업데이트를 위해 권한 필요
+      id-token: write
+      contents: write
 
     steps:
       # 소스 코드 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # 릴리즈 이벤트인 경우 태그를 체크아웃
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      # uv 설치 (Python도 함께 설치됨)
+      # uv 설치
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
-      # 릴리즈 생성 시, 태그 버전으로 pyproject.toml 업데이트
+      # 릴리즈 태그에서 버전 추출 및 업데이트
       - name: Update version from release tag
-        if: github.event.workflow_run.event == 'release' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
+        if: startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
         run: |
           # 'v' 접두사를 제거하고 버전 번호만 추출합니다.
           RELEASE_VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | sed 's/refs\/tags\/v//')
 
-          echo "Updating pyproject.toml version to $RELEASE_VERSION"
+          echo "Release tag: ${{ github.event.workflow_run.head_branch }}"
+          echo "Extracted version: $RELEASE_VERSION"
 
           # sed 명령어로 pyproject.toml 파일의 version 필드 업데이트
           sed -i "s/^version = .*/version = \"$RELEASE_VERSION\"/" pyproject.toml
@@ -46,62 +42,61 @@ jobs:
           echo "Updated version:"
           grep "^version" pyproject.toml
 
-      # uv를 사용하여 의존성 동기화 및 빌드
-      - name: Sync dependencies and build package with uv
+      # 패키지 빌드
+      - name: Build package with uv
         run: |
-          # pyproject.toml에 정의된 'dev' 추가 의존성을 설치합니다.
           uv sync
-          # uv build 명령어로 패키지 빌드
           uv build
 
-      # 빌드 결과물(artifact) 업로드
+      # 빌드 결과물 업로드
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
 
-  # 2. TestPyPI 배포 작업
+  # 2. TestPyPI 배포 (stage 브랜치용)
   publish-to-testpypi:
     needs: build
     runs-on: ubuntu-latest
-    # 'stage' 브랜치로 push 이벤트에 의해 트리거된 'CI Tests' 워크플로우가 성공했을 때 실행
     if: |
-      github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'stage'
     environment:
       name: testpypi
       url: https://test.pypi.org/p/transactional-sqlalchemy
+    permissions:
+      id-token: write
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
       - name: Publish to TestPyPI 🚀
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          skip-existing: true
+        run: |
+          uv publish --repository https://test.pypi.org/legacy/ dist/*
 
-  # 3. PyPI 배포 작업
+  # 3. PyPI 배포 (릴리즈 태그용)
   publish-to-pypi:
     needs: build
     runs-on: ubuntu-latest
-    # 'release' 이벤트에 의해 트리거된 'CI Tests' 워크플로우가 성공했을 때 실행
-    if: github.event_name == 'release'
+    if: startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
     environment:
       name: pypi
       url: https://pypi.org/p/transactional-sqlalchemy
+    permissions:
+      id-token: write
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
       - name: Publish to PyPI 🚀
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          uv publish dist/*
